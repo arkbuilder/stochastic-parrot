@@ -20,15 +20,29 @@ const batchSchema = z.object({
 router.post('/', validateBody(batchSchema), (req, res) => {
   const body = batchSchema.parse(req.body);
   const db = getDb();
+  const playerId = req.header('x-device-id') ?? 'player_local';
+
+  db.prepare(
+    `INSERT INTO players (id, display_name)
+     VALUES (?, ?)
+     ON CONFLICT(id) DO NOTHING`,
+  ).run(playerId, 'Pirate');
 
   const stmt = db.prepare(
     `INSERT INTO event_log (session_id, event_name, payload_json, payload_version, ts)
      VALUES (?, ?, ?, ?, ?)`,
   );
 
+  const sessionStmt = db.prepare(
+    `INSERT INTO sessions (id, player_id, input_mode, build_version)
+     VALUES (?, ?, 'mixed', 'dev')
+     ON CONFLICT(id) DO NOTHING`,
+  );
+
   db.exec('BEGIN');
   try {
     for (const event of body.events) {
+      sessionStmt.run(event.sessionId, playerId);
       stmt.run(
         event.sessionId,
         event.eventName,

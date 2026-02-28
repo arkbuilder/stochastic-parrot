@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('Island 1 playthrough reaches reward and returns to overworld', async ({ page }) => {
+test('Two-island flow reaches leaderboard', async ({ page }) => {
   await page.goto('/');
 
   await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'menu');
@@ -32,14 +32,31 @@ test('Island 1 playthrough reaches reward and returns to overworld', async ({ pa
   await page.evaluate(() => {
     (window as { __dr_debug?: { completeEncoding: () => void } }).__dr_debug?.completeEncoding();
   });
-
   await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'encounter');
 
   await page.evaluate(() => {
     (window as { __dr_debug?: { winEncounter: () => void } }).__dr_debug?.winEncounter();
   });
-
   await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'reward');
+
   await clickGame(120, 336);
   await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'overworld');
+
+  await page.evaluate(() => {
+    (window as { __dr_debug?: { sailToIsland: (islandId: string) => void } }).__dr_debug?.sailToIsland('island_02');
+  });
+  await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'island');
+
+  await page.evaluate(() => {
+    (window as { __dr_debug?: { completeEncoding: () => void } }).__dr_debug?.completeEncoding();
+  });
+  await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'encounter');
+
+  await page.evaluate(() => {
+    (window as { __dr_debug?: { winEncounter: () => void } }).__dr_debug?.winEncounter();
+  });
+  await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'reward');
+
+  await clickGame(120, 336);
+  await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'leaderboard');
 });

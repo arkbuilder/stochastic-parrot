@@ -11,7 +11,7 @@ export const UPGRADES: UpgradeDefinition[] = [
     id: 'reinforced_mast',
     name: 'Reinforced Mast',
     rarity: 'common',
-    unlockedAfterIsland: 'island_02',
+    unlockedAfterIsland: 'island_01',
     effects: ['sail_speed_1.2x', 'bit_assist_speed_up'],
   },
   {

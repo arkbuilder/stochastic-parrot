@@ -1,7 +1,6 @@
 # Quality Score
 
 > **Purpose:** Grade the quality of each architectural domain and game feature. Updated after each milestone.
-> Inspired by the OpenAI Harness Engineering quality grading approach.
 
 ---
 
@@ -9,132 +8,119 @@
 
 | Grade | Meaning |
 |---|---|
-| **A** | Production-ready. Tests pass, perf met, telemetry wired, acceptance criteria validated. |
-| **B** | Functional. Works correctly but missing tests, telemetry, or polish. |
-| **C** | Partial. Core logic exists but incomplete, untested, or has known bugs. |
-| **D** | Stub. Placeholder or scaffolding only. |
+| **A** | Production-ready for current milestone scope. |
+| **B** | Functional and stable, with minor polish gaps. |
+| **C** | Partial implementation or limited validation. |
+| **D** | Stub or placeholder only. |
 | **—** | Not started. |
 
 ---
 
-## Domain Grades
+## Domain Grades (Post-M2)
 
 ### Core Infrastructure
 
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| Game loop (`core/game-loop.ts`) | B | rAF loop wired with poll/update/render/present | B |
-| State machine (`core/state-machine.ts`) | B | Transition guard + transition records + tests | A |
-| Scene manager (`core/scene-manager.ts`) | B | Stack push/pop/replace lifecycle implemented | B |
-| Clock / timing (`core/clock.ts`) | A | Pause-aware dt + reset behavior with tests | B |
+| Domain | Grade | Notes |
+|---|---|---|
+| Game loop (`core/game-loop.ts`) | A- | Stable frame/update loop through multi-scene flows |
+| State machine (`core/state-machine.ts`) | B+ | Transition guard correctness validated; still coarse state granularity |
+| Scene manager (`core/scene-manager.ts`) | A- | Handles menu/overworld/island/encounter/reward/leaderboard transitions |
+| Clock / timing (`core/clock.ts`) | A | Deterministic timing and pause behavior covered by tests |
 
 ### Input
 
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| Touch provider | B | Pointer primary/drag/secondary events normalized | B |
-| Keyboard provider | B | WASD/arrows + Enter/Space/Escape mapping | B |
-| Input manager (unified) | B | Provider aggregation and normalized poll API | A |
-| Coordinate normalization | A | Screen→game mapping validated in unit test | A |
+| Domain | Grade | Notes |
+|---|---|---|
+| Touch provider | A- | Core interactions and scene controls work in e2e |
+| Keyboard provider | B+ | Primary interaction parity retained; deeper scene shortcuts pending |
+| Input manager | A | Normalization remains stable across new scenes |
+| Coordinate normalization | A | Canvas-scale translation validated by unit and e2e behavior |
 
 ### Rendering
 
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| Canvas setup + scaling | B | 240×400 portrait scaling + pixel-perfect rendering | A |
-| Sprite sheet loader | B | Atlas loader + frame animation fallback rendering implemented | B |
-| Tile map renderer | B | Island layout JSON renderer with camera offset support | B |
-| HUD overlay | B | Minimap/tray/timer/health/attempt indicators rendered per phase | C |
-| Particle effects | B | Fog edge + concept lock-in sparkle particles implemented | D |
+| Domain | Grade | Notes |
+|---|---|---|
+| Canvas setup + scaling | A- | Portrait-first render path stable across all M2 scenes |
+| Sprite/tile pipeline | B+ | Placeholder assets for Island 2 integrated and loading |
+| HUD overlays | B+ | Overworld/status + encounter HUDs are functional |
+| Particles/effects | B | Fog/sparkle effects active; storm visuals still lightweight |
 
 ### Audio
 
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| Audio manager | B | Web Audio mixer with master/music/sfx controls + mute | C |
-| Music layer engine | B | Base/rhythm/tension/resolution crossfades (500ms) | D |
-| SFX playback | B | Runtime oscillator SFX for encode/recall/fog/reward cues | B |
+| Domain | Grade | Notes |
+|---|---|---|
+| Audio manager | B+ | Scene-aware layer transitions stay stable |
+| Music layers | B+ | Overworld/encounter/reward transitions wired |
+| SFX playback | B+ | Recall/fog/storm feedback and reward cues active |
 
 ### Game Systems
 
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| Encode system (drag + place) | A | Snap radius + lock-in + placement validation with tests | A |
-| Recall system (prompt + validate) | A | Prompt progression, scoring multipliers, timeout handling with tests | A |
-| Threat system (fog advancement) | A | Fog advancement + pushback + fail/retry support with tests | B |
-| Movement system | B | Touch/keyboard-driven movement + parrot follow behavior | B |
-| Animation system | B | Entity animation/glow/lock timers updated per tick | C |
-| Camera system | C | Follow/clamp helper implemented; full scene integration pending | C |
+| Domain | Grade | Notes |
+|---|---|---|
+| Encode system | A | Stable, tested, and reused for Island 2 |
+| Recall system | A | Prompt scoring model aligned to spec and tested |
+| Threat system | B+ | Fog + storm pressure behaviors integrated |
+| Scoring system | A- | Base/speed/combo + grade helpers covered by tests |
+| Camera/movement/animation | B | Functional for current slice; richer encounter framing pending |
 
 ### Scenes
 
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| Boot scene | B | Loading placeholder + auto transition hook | B |
-| Menu scene | B | Start interaction on touch/mouse/keyboard primary | B |
-| Island scene | A | Full encode loop with concept unlock + threat trigger + telemetry/audio wiring | A |
-| Encounter scene | A | Cursed Fog recall loop with assist/retry/scoring + resolution | A |
-| Reward scene | B | Score/grade/chart fragment summary + continue progression | B |
-| Overworld scene | — | Not started (M2) | — |
-| Leaderboard scene | — | Not started (M2) | — |
+| Domain | Grade | Notes |
+|---|---|---|
+| Boot + Menu | B+ | Stable entry flow and leaderboard access |
+| Overworld | A- | Node sailing + fog-of-war + route progression complete for 2 islands |
+| Island scene | A | Generic island scene now supports island-specific content/layout |
+| Encounter scene | A- | Fog + storm implementations with assists and score telemetry |
+| Reward scene | B+ | Summary and progression routing complete |
+| Leaderboard scene | B+ | Toggleable per-island board with player rank display |
 
 ### Data & Content
 
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| Concept definitions | A | All 15 canonical concepts included with islands/landmarks | A |
-| Island 1 config | B | Island config scaffolded with landmark coordinates | A |
-| Encounter templates | B | 5 encounter templates with tuning knobs | B |
-| Recall prompts (Island 1) | B | Prompt set seeded from curriculum mappings | A |
+| Domain | Grade | Notes |
+|---|---|---|
+| Concept definitions | A | Full 15 concept catalog intact |
+| Island configs (1–2 active) | A- | Island 2 progression and storm mapping complete |
+| Encounter templates | A- | Template-driven timing for fog/storm integrated |
+| Upgrade data | B+ | Reinforced Mast progression aligned to M2 flow |
 
-### Persistence
+### Persistence & Security
 
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| SQLite schema + migrations | A | Full `001_init.sql` + migration runner validated | A |
-| Express server | B | API bootstrapped with JSON + static serving + health | B |
-| Score API | C | Basic GET/POST route implemented; checksum enforcement pending | — |
-| Progress API | B | GET/POST upsert flow implemented with schema validation | B |
-| Telemetry API | B | Batch ingest route with persisted event log | C |
-
-### Telemetry
-
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| Event definitions | A | M0+CoreInteraction event constants defined | A |
-| Telemetry client | A | Scene-level onboarding/core event emission and buffered flush wired | B |
-| Console sink (dev) | B | Batch logging sink active in development | B |
-| Server sink | B | `/api/events` route persists telemetry batches | — |
+| Domain | Grade | Notes |
+|---|---|---|
+| SQLite schema + migrations | A | Migration and schema remain stable |
+| Score API | A- | Checksum + envelope checks + leaderboard query/rank implemented |
+| Progress API | A- | Upsert with client-wins conflict policy and player upsert |
+| Telemetry API | B+ | Batch ingest and FK-safe session/player fallback |
+| Offline queue handling | B+ | Retry + drain + cache path implemented; broader conflict telemetry pending |
 
 ### Testing
 
-| Domain | Grade | Notes | Target (M1) |
-|---|---|---|---|
-| Unit tests | A | 22 unit tests across core/input/data/systems passing | B (≥20 tests) |
-| Integration tests | B | Encode→recall→reward integration flow test passing | C (≥5 tests) |
-| E2E tests | B | Island 1 playthrough scene path test passing in Playwright | D (≥1 test) |
+| Domain | Grade | Notes |
+|---|---|---|
+| Unit tests | A- | Expanded coverage with scoring + server validation tests |
+| Integration tests | B+ | Added overworld travel and persistence queue integration |
+| E2E tests | A- | Island 1 and two-island flow both passing in Playwright |
 
 ---
 
 ## Summary
 
-| Category | Current Avg | M1 Target | M2 Target |
-|---|---|---|---|
-| Core Infrastructure | B | B+ | A |
-| Input | B+ | A | A |
-| Rendering | B | B | A |
-| Audio | B | C+ | B |
-| Game Systems | B+ | B+ | A |
-| Scenes | A- | B+ | A |
-| Data & Content | B+ | A | A |
-| Persistence | B | B | A |
-| Telemetry | A- | B | A |
-| Testing | B+ | C+ | B |
+| Category | Current Avg | M3 Target |
+|---|---|---|
+| Core Infrastructure | A- | A |
+| Input | A- | A |
+| Rendering | B+ | A- |
+| Audio | B+ | A- |
+| Game Systems | A- | A |
+| Scenes | A- | A |
+| Data & Content | A- | A |
+| Persistence & Security | A- | A |
+| Testing | A- | A |
 
 ---
 
 ## Update Cadence
 
-- Update grades at the **end of each milestone**.
-- When promoting a grade, cite the evidence (e.g., "tests pass", "playtest validated", "perf budget met").
-- When a grade drops, log the reason in the Notes column and add a tech debt entry in `docs/PLANS.md`.
+- Update grades at the end of each milestone.
+- Promote grades only with validation evidence (lint/test/build/e2e, playability checks, persistence behavior).
+- Log degradations as technical debt in `docs/PLANS.md`.

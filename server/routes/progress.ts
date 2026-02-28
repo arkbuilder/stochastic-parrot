@@ -38,15 +38,21 @@ router.post('/', validateBody(progressSchema), (req, res) => {
   const db = getDb();
 
   db.prepare(
+    `INSERT INTO players (id, display_name)
+     VALUES (?, ?)
+     ON CONFLICT(id) DO NOTHING`,
+  ).run(body.playerId, 'Pirate');
+
+  db.prepare(
     `INSERT INTO island_progress (player_id, island_id, status, best_grade, best_score, chart_fragment, expert_bonus, attempts)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(player_id, island_id) DO UPDATE SET
        status = excluded.status,
        best_grade = excluded.best_grade,
-       best_score = MAX(island_progress.best_score, excluded.best_score),
-       chart_fragment = MAX(island_progress.chart_fragment, excluded.chart_fragment),
-       expert_bonus = MAX(island_progress.expert_bonus, excluded.expert_bonus),
-       attempts = MAX(island_progress.attempts, excluded.attempts),
+       best_score = excluded.best_score,
+       chart_fragment = excluded.chart_fragment,
+       expert_bonus = excluded.expert_bonus,
+       attempts = excluded.attempts,
        updated_at = datetime('now')`,
   ).run(
     body.playerId,

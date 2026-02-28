@@ -18,14 +18,13 @@ import type { EncounterStartData } from './flow-types';
 import { distance } from '../utils/math';
 
 interface IslandSceneDeps {
+  islandId: string;
   onThreatTriggered: (data: EncounterStartData) => void;
   telemetry: TelemetryClient;
   audio: AudioManager;
 }
 
 type IslandPhase = 'island_arrive' | 'exploring' | 'encoding' | 'threat_triggered';
-
-const ISLAND_1_ID = 'island_01';
 
 export class IslandScene implements Scene {
   private readonly island: (typeof ISLANDS)[number];
@@ -45,9 +44,9 @@ export class IslandScene implements Scene {
   private threatSent = false;
 
   constructor(private readonly deps: IslandSceneDeps) {
-    const island = ISLANDS.find((entry) => entry.id === ISLAND_1_ID);
+    const island = ISLANDS.find((entry) => entry.id === deps.islandId);
     if (!island) {
-      throw new Error('Island 1 configuration missing');
+      throw new Error(`Island configuration missing: ${deps.islandId}`);
     }
 
     this.island = island;
@@ -87,7 +86,8 @@ export class IslandScene implements Scene {
     this.threatSent = false;
     void this.loadLayout();
 
-    this.deps.telemetry.emit(TELEMETRY_EVENTS.onboardingStart, { island_id: ISLAND_1_ID });
+    this.deps.telemetry.emit(TELEMETRY_EVENTS.onboardingStart, { island_id: this.island.id });
+    this.deps.telemetry.emit(TELEMETRY_EVENTS.islandArrived, { island_id: this.island.id });
     this.deps.audio.setMusicLayers(['base', 'rhythm']);
   }
 
@@ -124,7 +124,7 @@ export class IslandScene implements Scene {
         this.deps.audio.play(AudioEvent.ConceptPlaced);
         this.particles.emitSparkle(this.player.position.x, this.player.position.y - 8);
         this.deps.telemetry.emit(TELEMETRY_EVENTS.conceptPlaced, {
-          island_id: ISLAND_1_ID,
+          island_id: this.island.id,
           concept_id: event.conceptId,
           landmark_id: event.landmarkId,
           encode_duration_ms: this.nowMs,
@@ -134,7 +134,7 @@ export class IslandScene implements Scene {
           this.firstPlaced = true;
           this.deps.telemetry.emit(TELEMETRY_EVENTS.firstSuccessCoreVerb, {
             core_verb: 'place',
-            island_id: ISLAND_1_ID,
+            island_id: this.island.id,
           });
         }
       }
@@ -198,7 +198,7 @@ export class IslandScene implements Scene {
       ctx.fillStyle = '#e5e7eb';
       ctx.font = TOKENS.fontSmall;
       ctx.textAlign = 'center';
-      ctx.fillText('Bay of Learning', 120, 200);
+      ctx.fillText(this.island.name, 120, 200);
     }
   }
 
@@ -221,7 +221,7 @@ export class IslandScene implements Scene {
 
   private async loadLayout(): Promise<void> {
     try {
-      this.tileMap = await TileMap.load('/layouts/island_01/layout.json');
+      this.tileMap = await TileMap.load(`/layouts/${this.island.id}/layout.json`);
     } catch {
       this.tileMap = new TileMap(fallbackLayout);
     }
@@ -255,13 +255,19 @@ export class IslandScene implements Scene {
     this.threatSent = true;
     this.phase = 'threat_triggered';
     this.deps.telemetry.emit(TELEMETRY_EVENTS.encodePhaseComplete, {
-      island_id: ISLAND_1_ID,
+      island_id: this.island.id,
       concepts_count: this.conceptCards.length,
       total_encode_ms: this.nowMs,
     });
+    this.deps.telemetry.emit(TELEMETRY_EVENTS.islandEncodingComplete, {
+      island_id: this.island.id,
+      concepts_placed: this.conceptCards.length,
+      encode_total_ms: this.nowMs,
+    });
 
     this.deps.onThreatTriggered({
-      islandId: ISLAND_1_ID,
+      islandId: this.island.id,
+      encounterType: this.island.encounterType,
       landmarks: this.landmarks.map((landmark) => ({
         ...landmark,
         state: { ...landmark.state },

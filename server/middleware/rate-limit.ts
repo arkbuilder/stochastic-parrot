@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 
-const RATE_WINDOW_MS = 10_000;
-const RATE_MAX_REQUESTS = 50;
+export const RATE_WINDOW_MS = 10_000;
+export const RATE_MAX_REQUESTS = 50;
 
 type RateEntry = { windowStart: number; count: number };
 const buckets = new Map<string, RateEntry>();
@@ -28,4 +28,8 @@ export function rateLimit(req: Request, res: Response, next: NextFunction): void
 
   current.count += 1;
   next();
+}
+
+export function __resetRateLimitBucketsForTests(): void {
+  buckets.clear();
 }

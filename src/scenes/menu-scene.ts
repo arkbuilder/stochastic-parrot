@@ -6,13 +6,23 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 const START_BUTTON: Rect = {
   x: 64,
-  y: 300,
+  y: 280,
   w: 112,
-  h: 40,
+  h: 34,
+};
+
+const LEADERBOARD_BUTTON: Rect = {
+  x: 64,
+  y: 322,
+  w: 112,
+  h: 30,
 };
 
 export class MenuScene implements Scene {
-  constructor(private readonly onStart: () => void) {}
+  constructor(
+    private readonly onStart: () => void,
+    private readonly onLeaderboard: () => void,
+  ) {}
 
   enter(context: SceneContext): void {
     void context;
@@ -28,6 +38,11 @@ export class MenuScene implements Scene {
 
       if (isPointInRect(action.x, action.y, START_BUTTON) || Number.isNaN(action.x)) {
         this.onStart();
+        return;
+      }
+
+      if (isPointInRect(action.x, action.y, LEADERBOARD_BUTTON)) {
+        this.onLeaderboard();
         return;
       }
     }
@@ -54,9 +69,19 @@ export class MenuScene implements Scene {
     ctx.font = TOKENS.fontMedium;
     ctx.fillText('START', GAME_WIDTH / 2, START_BUTTON.y + START_BUTTON.h / 2);
 
+    ctx.fillStyle = TOKENS.colorPanel;
+    ctx.fillRect(LEADERBOARD_BUTTON.x, LEADERBOARD_BUTTON.y, LEADERBOARD_BUTTON.w, LEADERBOARD_BUTTON.h);
+
+    ctx.strokeStyle = TOKENS.colorCyan400;
+    ctx.strokeRect(LEADERBOARD_BUTTON.x, LEADERBOARD_BUTTON.y, LEADERBOARD_BUTTON.w, LEADERBOARD_BUTTON.h);
+
     ctx.fillStyle = TOKENS.colorText;
     ctx.font = TOKENS.fontSmall;
-    ctx.fillText('Tap, click, or Enter', GAME_WIDTH / 2, 370);
+    ctx.fillText('LEADERBOARD', GAME_WIDTH / 2, LEADERBOARD_BUTTON.y + LEADERBOARD_BUTTON.h / 2 + 1);
+
+    ctx.fillStyle = TOKENS.colorText;
+    ctx.font = TOKENS.fontSmall;
+    ctx.fillText('Tap, click, or Enter', GAME_WIDTH / 2, 374);
   }
 }
 

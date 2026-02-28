@@ -14,6 +14,15 @@ const progressSchema = z.object({
   chartFragment: z.number().int().min(0).max(1).default(0),
   expertBonus: z.number().int().min(0).max(1).default(0),
   attempts: z.number().int().nonnegative().default(0),
+  conceptMastery: z
+    .array(
+      z.object({
+        conceptId: z.string().min(1),
+        masteryLevel: z.enum(['discovered', 'placed', 'recalled', 'mastered']),
+        recallCount: z.number().int().nonnegative(),
+      }),
+    )
+    .default([]),
 });
 
 router.get('/', (req, res) => {
@@ -64,6 +73,31 @@ router.post('/', validateBody(progressSchema), (req, res) => {
     body.expertBonus,
     body.attempts,
   );
+
+  const masteryStmt = db.prepare(
+    `INSERT INTO concept_mastery (player_id, concept_id, mastery_level, recall_count, first_recall_ms)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(player_id, concept_id) DO UPDATE SET
+       mastery_level = CASE
+         WHEN excluded.mastery_level = 'mastered' THEN 'mastered'
+         WHEN concept_mastery.mastery_level = 'mastered' THEN 'mastered'
+         WHEN excluded.mastery_level = 'recalled' AND concept_mastery.mastery_level IN ('discovered', 'placed') THEN 'recalled'
+         WHEN excluded.mastery_level = 'placed' AND concept_mastery.mastery_level = 'discovered' THEN 'placed'
+         ELSE concept_mastery.mastery_level
+       END,
+       recall_count = MAX(concept_mastery.recall_count, excluded.recall_count),
+       updated_at = datetime('now')`,
+  );
+
+  for (const concept of body.conceptMastery) {
+    masteryStmt.run(
+      body.playerId,
+      concept.conceptId,
+      concept.masteryLevel,
+      concept.recallCount,
+      concept.recallCount > 0 ? Date.now() : null,
+    );
+  }
 
   res.status(201).json({ ok: true });
 });

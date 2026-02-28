@@ -1,0 +1,8 @@
+{
+  "frames": {
+    "nemo_idle": { "x": 0, "y": 0, "w": 16, "h": 16, "frames": 1, "fps": 1 },
+    "nemo_walk": { "x": 0, "y": 16, "w": 16, "h": 16, "frames": 4, "fps": 8 },
+    "bit_idle": { "x": 0, "y": 32, "w": 8, "h": 8, "frames": 2, "fps": 5 },
+    "ruins_gate": { "x": 16, "y": 32, "w": 16, "h": 16, "frames": 2, "fps": 4 }
+  }
+}

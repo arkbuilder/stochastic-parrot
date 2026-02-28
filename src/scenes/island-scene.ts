@@ -276,6 +276,7 @@ export class IslandScene implements Scene {
       })),
       placedConceptIds: this.conceptCards.map((card) => card.state.conceptId),
       startedAtMs: this.nowMs,
+      activeUpgrades: [],
     });
   }
 }

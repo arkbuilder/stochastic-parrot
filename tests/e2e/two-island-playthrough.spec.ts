@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('Two-island flow reaches leaderboard', async ({ page }) => {
+test('Two-island flow unlocks island 3 on overworld', async ({ page }) => {
   await page.goto('/');
 
   await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'menu');
@@ -58,5 +58,10 @@ test('Two-island flow reaches leaderboard', async ({ page }) => {
   await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'reward');
 
   await clickGame(120, 336);
-  await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'leaderboard');
+  await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'overworld');
+
+  await page.evaluate(() => {
+    (window as { __dr_debug?: { sailToIsland: (islandId: string) => void } }).__dr_debug?.sailToIsland('island_03');
+  });
+  await page.waitForFunction(() => (window as { __dr_scene?: string }).__dr_scene === 'island');
 });

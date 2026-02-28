@@ -20,4 +20,25 @@ describe('ISLANDS', () => {
     expect(island2?.encounterType).toBe('storm');
     expect(island2?.unlockAfter).toBe('island_01');
   });
+
+  it('contains Islands 3-5 with battle/ruins/squid encounters', () => {
+    const island3 = ISLANDS.find((island) => island.id === 'island_03');
+    const island4 = ISLANDS.find((island) => island.id === 'island_04');
+    const island5 = ISLANDS.find((island) => island.id === 'island_05');
+
+    expect(island3?.encounterType).toBe('battle');
+    expect(island4?.encounterType).toBe('ruins');
+    expect(island5?.encounterType).toBe('squid');
+    expect(island3?.conceptIds).toHaveLength(3);
+    expect(island4?.conceptIds).toHaveLength(3);
+    expect(island5?.conceptIds).toHaveLength(3);
+  });
+
+  it('contains Hidden Reef secret island unlocked after Island 5', () => {
+    const hidden = ISLANDS.find((island) => island.id === 'hidden_reef');
+    expect(hidden).toBeDefined();
+    expect(hidden?.encounterType).toBe('ruins');
+    expect(hidden?.unlockAfter).toBe('island_05');
+    expect(hidden?.landmarks).toHaveLength(3);
+  });
 });

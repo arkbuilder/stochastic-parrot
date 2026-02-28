@@ -18,6 +18,11 @@ export interface ProgressSubmission {
   chartFragment: 0 | 1;
   expertBonus: 0 | 1;
   attempts: number;
+  conceptMastery?: Array<{
+    conceptId: string;
+    masteryLevel: 'discovered' | 'placed' | 'recalled' | 'mastered';
+    recallCount: number;
+  }>;
 }
 
 export interface TelemetryBatch {

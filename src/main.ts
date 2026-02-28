@@ -20,7 +20,12 @@ import { LocalStore } from './persistence/local-store';
 import { computeScoreChecksum } from './persistence/checksum';
 import { TELEMETRY_EVENTS } from './telemetry/events';
 import { ISLANDS } from './data/islands';
-import type { OverworldProgress, RewardData } from './scenes/flow-types';
+import { CONCEPTS } from './data/concepts';
+import { createLandmark } from './entities/landmark';
+import { ISLAND_UPGRADE_REWARDS } from './data/progression';
+import { UPGRADES } from './data/upgrades';
+import { gradeFromRatio } from './systems/scoring-system';
+import type { EncounterStartData, OverworldProgress, RewardData } from './scenes/flow-types';
 
 type DebugController = {
   completeEncoding: () => void;
@@ -28,7 +33,16 @@ type DebugController = {
   sailToIsland: (islandId: string) => void;
 };
 
+type IslandResult = {
+  score: number;
+  grade: 'S' | 'A' | 'B' | 'C' | 'D';
+  timeMs: number;
+  accuracyPct: number;
+  expertBonus: boolean;
+};
+
 const PLAYER_ID = 'player_local';
+const MAIN_ISLAND_IDS = ['island_01', 'island_02', 'island_03', 'island_04', 'island_05'];
 
 const canvasElement = document.getElementById('game-canvas');
 if (!(canvasElement instanceof HTMLCanvasElement)) {
@@ -64,14 +78,29 @@ const sceneManager = new SceneManager(sceneContext);
 
 const progressState = {
   completedIslands: new Set<string>(),
-  islandResults: new Map<string, { score: number; grade: 'S' | 'A' | 'B' | 'C' | 'D' }>(),
+  expertBonusIslands: new Set<string>(),
+  islandResults: new Map<string, IslandResult>(),
   shipUpgrades: new Set<string>(),
+  conceptRecallCounts: new Map<string, number>(),
 };
+
+let activeIslandStartMs = 0;
+
+function allMainExpertBonusesEarned(): boolean {
+  return MAIN_ISLAND_IDS.every((islandId) => progressState.expertBonusIslands.has(islandId));
+}
 
 function getUnlockedIslands(): string[] {
   const unlocked: string[] = [];
 
   for (const island of ISLANDS) {
+    if (island.id === 'hidden_reef') {
+      if (progressState.shipUpgrades.has('ghostlight_lantern') && progressState.completedIslands.has('island_05')) {
+        unlocked.push(island.id);
+      }
+      continue;
+    }
+
     if (!island.unlockAfter || progressState.completedIslands.has(island.unlockAfter)) {
       unlocked.push(island.id);
     }
@@ -90,6 +119,7 @@ function getOverworldProgressSnapshot(): OverworldProgress {
       grade: result.grade,
     })),
     shipUpgrades: Array.from(progressState.shipUpgrades),
+    expertBonusIslands: Array.from(progressState.expertBonusIslands),
   };
 }
 
@@ -129,6 +159,7 @@ function goToLeaderboard(): void {
     apiClient,
     localStore,
     playerId: PLAYER_ID,
+    availableIslands: getUnlockedIslands().filter((id) => id.startsWith('island_')),
     onBack: () => goToMenu(),
   });
 
@@ -137,21 +168,134 @@ function goToLeaderboard(): void {
   (window as Window & { __dr_scene?: string }).__dr_scene = 'leaderboard';
 }
 
-async function persistReward(reward: RewardData): Promise<void> {
-  const scoreBase = {
+function mapGradeToAccuracy(grade: 'S' | 'A' | 'B' | 'C' | 'D', expertBonus: boolean): number {
+  if (expertBonus) {
+    return 100;
+  }
+
+  if (grade === 'S') {
+    return 97;
+  }
+  if (grade === 'A') {
+    return 88;
+  }
+  if (grade === 'B') {
+    return 74;
+  }
+  if (grade === 'C') {
+    return 58;
+  }
+  return 45;
+}
+
+function getAggregateStats(): { totalScore: number; totalTimeMs: number; accuracyPct: number; totalGrade: 'S' | 'A' | 'B' | 'C' | 'D' } {
+  const results = Array.from(progressState.islandResults.values());
+  const totalScore = results.reduce((acc, result) => acc + result.score, 0);
+  const totalTimeMs = results.reduce((acc, result) => acc + result.timeMs, 0);
+  const accuracyPct = results.length > 0 ? results.reduce((acc, result) => acc + result.accuracyPct, 0) / results.length : 0;
+
+  const maxApprox = MAIN_ISLAND_IDS.length * 1400;
+  const totalGrade = gradeFromRatio(Math.min(1, totalScore / maxApprox));
+
+  return { totalScore, totalTimeMs, accuracyPct, totalGrade };
+}
+
+async function submitScoreRecord(payload: {
+  boardType: 'island' | 'total' | 'speed' | 'accuracy';
+  islandId?: string;
+  score: number;
+  timeMs: number;
+  accuracyPct: number;
+  grade: 'S' | 'A' | 'B' | 'C' | 'D';
+}): Promise<void> {
+  const checksum = await computeScoreChecksum({
     playerId: PLAYER_ID,
-    boardType: 'island' as const,
-    islandId: reward.islandId,
-    score: reward.islandScore,
-    timeMs: Math.max(1, Math.floor(performance.now())),
-    accuracyPct: reward.expertBonus ? 100 : 75,
-    grade: reward.grade,
+    boardType: payload.boardType,
+    islandId: payload.islandId,
+    score: payload.score,
+    timeMs: payload.timeMs,
+    accuracyPct: payload.accuracyPct,
+    grade: payload.grade,
+  });
+
+  const fullPayload = {
+    playerId: PLAYER_ID,
+    boardType: payload.boardType,
+    islandId: payload.islandId,
+    score: payload.score,
+    timeMs: payload.timeMs,
+    accuracyPct: payload.accuracyPct,
+    grade: payload.grade,
+    checksum,
   };
 
-  const scorePayload = {
-    ...scoreBase,
-    checksum: await computeScoreChecksum(scoreBase),
-  };
+  await apiClient
+    .submitScore(fullPayload)
+    .then(() => {
+      telemetry.emit(TELEMETRY_EVENTS.leaderboardEntrySubmitted, {
+        board_type: payload.boardType,
+        island_id: payload.islandId ?? null,
+        score: payload.score,
+        time_ms: payload.timeMs,
+      });
+    })
+    .catch(() => localStore.saveScore(fullPayload));
+}
+
+function getConceptMasteryPayloadForIsland(islandId: string) {
+  const island = ISLANDS.find((entry) => entry.id === islandId);
+  if (!island) {
+    return [];
+  }
+
+  return island.conceptIds.map((conceptId) => {
+    const count = (progressState.conceptRecallCounts.get(conceptId) ?? 0) + 1;
+    progressState.conceptRecallCounts.set(conceptId, count);
+
+    return {
+      conceptId,
+      masteryLevel: (count >= 3 ? 'mastered' : 'recalled') as 'recalled' | 'mastered',
+      recallCount: count,
+    };
+  });
+}
+
+async function persistReward(reward: RewardData): Promise<void> {
+  const islandResult = progressState.islandResults.get(reward.islandId);
+  const accuracyPct = islandResult?.accuracyPct ?? mapGradeToAccuracy(reward.grade, reward.expertBonus);
+  const elapsedMs = islandResult?.timeMs ?? Math.max(1, Math.floor(performance.now()));
+
+  await submitScoreRecord({
+    boardType: 'island',
+    islandId: reward.islandId,
+    score: reward.islandScore,
+    timeMs: elapsedMs,
+    accuracyPct,
+    grade: reward.grade,
+  });
+
+  const aggregate = getAggregateStats();
+  await submitScoreRecord({
+    boardType: 'total',
+    score: aggregate.totalScore,
+    timeMs: aggregate.totalTimeMs,
+    accuracyPct: aggregate.accuracyPct,
+    grade: aggregate.totalGrade,
+  });
+  await submitScoreRecord({
+    boardType: 'speed',
+    score: aggregate.totalScore,
+    timeMs: aggregate.totalTimeMs,
+    accuracyPct: aggregate.accuracyPct,
+    grade: aggregate.totalGrade,
+  });
+  await submitScoreRecord({
+    boardType: 'accuracy',
+    score: Math.round(aggregate.accuracyPct * 100),
+    timeMs: aggregate.totalTimeMs,
+    accuracyPct: aggregate.accuracyPct,
+    grade: aggregate.totalGrade,
+  });
 
   const progressPayload = {
     playerId: PLAYER_ID,
@@ -162,55 +306,122 @@ async function persistReward(reward: RewardData): Promise<void> {
     chartFragment: 1 as const,
     expertBonus: reward.expertBonus ? (1 as const) : (0 as const),
     attempts: 1,
+    conceptMastery: getConceptMasteryPayloadForIsland(reward.islandId),
   };
-
-  await apiClient
-    .submitScore(scorePayload)
-    .then(() => {
-      telemetry.emit(TELEMETRY_EVENTS.leaderboardEntrySubmitted, {
-        board_type: 'island',
-        island_id: reward.islandId,
-        score: reward.islandScore,
-      });
-    })
-    .catch(() => localStore.saveScore(scorePayload));
 
   await apiClient.submitProgress(progressPayload).catch(() => localStore.saveProgress(progressPayload));
 }
 
+function applyUpgrade(upgradeId: string, islandId: string): void {
+  if (progressState.shipUpgrades.has(upgradeId)) {
+    return;
+  }
+
+  progressState.shipUpgrades.add(upgradeId);
+  const definition = UPGRADES.find((entry) => entry.id === upgradeId);
+  telemetry.emit(TELEMETRY_EVENTS.upgradeEarned, {
+    upgrade_id: upgradeId,
+    island_id: islandId,
+    rarity: definition?.rarity ?? 'common',
+  });
+}
+
 function applyRewardLocally(reward: RewardData): void {
   progressState.completedIslands.add(reward.islandId);
+
+  const elapsedMs = Math.max(1, Math.floor(performance.now() - activeIslandStartMs));
   progressState.islandResults.set(reward.islandId, {
     score: reward.islandScore,
     grade: reward.grade,
+    timeMs: elapsedMs,
+    accuracyPct: mapGradeToAccuracy(reward.grade, reward.expertBonus),
+    expertBonus: reward.expertBonus,
   });
 
-  if (reward.islandId === 'island_01' && !progressState.shipUpgrades.has('reinforced_mast')) {
-    progressState.shipUpgrades.add('reinforced_mast');
-    telemetry.emit(TELEMETRY_EVENTS.upgradeEarned, {
-      upgrade_id: 'reinforced_mast',
-      island_id: reward.islandId,
-      rarity: 'common',
-    });
+  if (reward.expertBonus && MAIN_ISLAND_IDS.includes(reward.islandId)) {
+    progressState.expertBonusIslands.add(reward.islandId);
+  }
+
+  const upgradeId = ISLAND_UPGRADE_REWARDS[reward.islandId];
+  if (upgradeId) {
+    applyUpgrade(upgradeId, reward.islandId);
+  }
+
+  if (allMainExpertBonusesEarned()) {
+    applyUpgrade('ghostlight_lantern', reward.islandId);
   }
 
   telemetry.emit(TELEMETRY_EVENTS.islandComplete, {
     island_id: reward.islandId,
-    total_ms: Math.floor(performance.now()),
+    total_ms: elapsedMs,
     expert_bonus: reward.expertBonus,
     chart_fragments_total: progressState.completedIslands.size,
   });
 }
 
+function buildSquidEncounterData(base: EncounterStartData): EncounterStartData {
+  const sourceConcepts = CONCEPTS.filter(
+    (concept) =>
+      MAIN_ISLAND_IDS.includes(concept.islandId) &&
+      (progressState.completedIslands.has(concept.islandId) || concept.islandId === base.islandId),
+  ).slice(0, 8);
+
+  const conceptOriginIsland: Record<string, string> = {};
+  for (const concept of sourceConcepts) {
+    conceptOriginIsland[concept.id] = concept.islandId;
+  }
+
+  const islandIds = MAIN_ISLAND_IDS.filter(
+    (islandId) => progressState.completedIslands.has(islandId) || islandId === base.islandId,
+  );
+
+  const spacing = islandIds.length > 1 ? 168 / (islandIds.length - 1) : 0;
+  const tentacleLandmarks = islandIds.map((islandId, index) => {
+    const x = Math.floor(36 + spacing * index);
+    const y = 220;
+    return createLandmark(islandId, islandId, x, y);
+  });
+
+  return {
+    ...base,
+    landmarks: tentacleLandmarks,
+    placedConceptIds: sourceConcepts.map((concept) => concept.id),
+    conceptOriginIsland,
+  };
+}
+
+function shouldGoToLeaderboardAfterReward(reward: RewardData): boolean {
+  if (reward.islandId === 'hidden_reef') {
+    return true;
+  }
+
+  if (reward.islandId === 'island_05') {
+    const hiddenUnlocked = getUnlockedIslands().includes('hidden_reef');
+    const hiddenCompleted = progressState.completedIslands.has('hidden_reef');
+    return !hiddenUnlocked || hiddenCompleted;
+  }
+
+  return false;
+}
+
 function startIsland(islandId: string): void {
   void audioManager.resume();
+  activeIslandStartMs = performance.now();
 
   const islandScene = new IslandScene({
     islandId,
     telemetry,
     audio: audioManager,
     onThreatTriggered: (encounterData) => {
-      const encounterScene = new EncounterScene(encounterData, {
+      const withUpgrades: EncounterStartData = {
+        ...encounterData,
+        activeUpgrades: Array.from(progressState.shipUpgrades),
+      };
+
+      const finalEncounterData =
+        withUpgrades.encounterType === 'squid' ? buildSquidEncounterData(withUpgrades) : withUpgrades;
+
+      const encounterScene = new EncounterScene(finalEncounterData, {
         telemetry,
         audio: audioManager,
         onResolved: (reward) => {
@@ -223,7 +434,7 @@ function startIsland(islandId: string): void {
               void persistReward(reward);
               void telemetry.flush();
 
-              if (reward.islandId === 'island_02') {
+              if (shouldGoToLeaderboardAfterReward(reward)) {
                 goToLeaderboard();
                 return;
               }
@@ -283,6 +494,19 @@ function applyPortraitScale(): void {
 window.addEventListener('resize', applyPortraitScale);
 applyPortraitScale();
 
+function hydrateAwardedUpgradesFromProgress(): void {
+  for (const islandId of progressState.completedIslands) {
+    const upgradeId = ISLAND_UPGRADE_REWARDS[islandId];
+    if (upgradeId) {
+      progressState.shipUpgrades.add(upgradeId);
+    }
+  }
+
+  if (allMainExpertBonusesEarned()) {
+    progressState.shipUpgrades.add('ghostlight_lantern');
+  }
+}
+
 async function hydrateProgress(): Promise<void> {
   try {
     const response = await apiClient.getProgress(PLAYER_ID);
@@ -294,15 +518,20 @@ async function hydrateProgress(): Promise<void> {
         progressState.islandResults.set(entry.islandId, {
           score: entry.bestScore,
           grade: entry.bestGrade,
+          timeMs: 0,
+          accuracyPct: mapGradeToAccuracy(entry.bestGrade, entry.expertBonus === 1),
+          expertBonus: entry.expertBonus === 1,
         });
       }
-      if (entry.islandId === 'island_01' && entry.status === 'completed') {
-        progressState.shipUpgrades.add('reinforced_mast');
+      if (entry.expertBonus === 1) {
+        progressState.expertBonusIslands.add(entry.islandId);
       }
     }
   } catch {
     // offline mode
   }
+
+  hydrateAwardedUpgradesFromProgress();
 
   const drainResult = await localStore.drainQueue(apiClient);
   if (drainResult.sent > 0 || drainResult.failed > 0) {

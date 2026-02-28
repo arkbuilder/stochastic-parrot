@@ -5,6 +5,7 @@ import type { TelemetryClient } from '../telemetry/telemetry-client';
 import { TELEMETRY_EVENTS } from '../telemetry/events';
 import { TOKENS } from '../rendering/tokens';
 import type { OverworldProgress } from './flow-types';
+import { OVERWORLD_NODES } from '../data/progression';
 
 interface OverworldSceneDeps {
   progress: OverworldProgress;
@@ -15,18 +16,6 @@ interface OverworldSceneDeps {
 }
 
 type OverworldPhase = 'chart_visible' | 'node_selected' | 'sailing';
-
-type NodeDefinition = {
-  islandId: string;
-  name: string;
-  x: number;
-  y: number;
-};
-
-const NODES: NodeDefinition[] = [
-  { islandId: 'island_01', name: 'Bay of Learning', x: 72, y: 224 },
-  { islandId: 'island_02', name: 'Driftwood Shallows', x: 168, y: 156 },
-];
 
 const SAIL_BUTTON = { x: 74, y: 352, w: 92, h: 30 };
 
@@ -61,12 +50,9 @@ export class OverworldScene implements Scene {
       const dtMs = dt * 1000;
       this.sailProgress = Math.min(1, this.sailProgress + dtMs / this.sailDurationMs);
 
-      if (!this.sightingShown && this.sailProgress >= 0.45 && this.sailProgress <= 0.72) {
+      if (!this.sightingShown && this.sailProgress >= 0.46 && this.sailProgress <= 0.72) {
         this.sightingShown = true;
-        this.deps.telemetry.emit(TELEMETRY_EVENTS.sightingShown, {
-          sighting_type: this.selectedNodeId === 'island_02' ? 'storm_front' : 'open_sea',
-          route_id: this.currentRouteId,
-        });
+        this.emitSighting();
       }
 
       if (this.sailProgress >= 1) {
@@ -128,11 +114,21 @@ export class OverworldScene implements Scene {
     ctx.fillStyle = '#1e3a5f';
     ctx.fillRect(0, 68, 240, 16);
 
-    if (this.phase === 'sailing' && this.selectedNodeId === 'island_02' && this.sailProgress >= 0.45) {
-      ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
-      ctx.fillRect(172, 18, 44, 22);
-      ctx.fillStyle = 'rgba(248, 250, 252, 0.6)';
-      ctx.fillRect(190, 22, 2, 16);
+    if (this.phase === 'sailing' && this.sailProgress >= 0.45) {
+      if (this.deps.progress.completedIslands.includes('island_04')) {
+        ctx.fillStyle = 'rgba(236, 72, 153, 0.65)';
+        ctx.fillRect(176, 20, 40, 16);
+      } else if (this.deps.progress.completedIslands.includes('island_02')) {
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.72)';
+        ctx.fillRect(176, 18, 42, 18);
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(194, 14, 3, 20);
+      } else if (this.selectedNodeId === 'island_02') {
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
+        ctx.fillRect(172, 18, 44, 22);
+        ctx.fillStyle = 'rgba(248, 250, 252, 0.6)';
+        ctx.fillRect(190, 22, 2, 16);
+      }
     }
   }
 
@@ -140,22 +136,32 @@ export class OverworldScene implements Scene {
     ctx.fillStyle = '#123153';
     ctx.fillRect(0, 84, 240, 236);
 
-    const node1 = NODES[0];
-    const node2 = NODES[1];
-    if (node1 && node2) {
-      const routeVisible = this.isIslandUnlocked(node2.islandId);
-      if (routeVisible) {
-        ctx.strokeStyle = 'rgba(125, 211, 252, 0.65)';
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(node1.x, node1.y);
-        ctx.lineTo(node2.x, node2.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
+    const visibleNodes = OVERWORLD_NODES.filter((node) =>
+      node.secret ? this.deps.progress.shipUpgrades.includes('ghostlight_lantern') : true,
+    );
+
+    for (let index = 0; index < visibleNodes.length - 1; index += 1) {
+      const from = visibleNodes[index];
+      const to = visibleNodes[index + 1];
+      if (!from || !to) {
+        continue;
       }
+
+      const routeVisible = this.isIslandUnlocked(to.islandId);
+      if (!routeVisible) {
+        continue;
+      }
+
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.65)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
-    for (const node of NODES) {
+    for (const node of visibleNodes) {
       const unlocked = this.isIslandUnlocked(node.islandId);
       const completed = this.deps.progress.completedIslands.includes(node.islandId);
       const selected = node.islandId === this.selectedNodeId;
@@ -164,7 +170,8 @@ export class OverworldScene implements Scene {
       ctx.fillStyle = unlocked ? '#0f172a' : 'rgba(15, 23, 42, 0.35)';
       ctx.fillRect(node.x - 12, node.y - 12, 24, 24);
 
-      ctx.strokeStyle = completed ? TOKENS.colorYellow400 : unlocked ? TOKENS.colorCyan400 : '#334155';
+      const border = completed ? TOKENS.colorYellow400 : unlocked ? TOKENS.colorCyan400 : '#334155';
+      ctx.strokeStyle = border;
       ctx.lineWidth = selected ? 2 : 1;
       ctx.strokeRect(node.x - 12, node.y - 12, 24, 24);
       ctx.lineWidth = 1;
@@ -187,11 +194,10 @@ export class OverworldScene implements Scene {
       }
     }
 
-    const island2Unlocked = this.isIslandUnlocked('island_02');
-    if (!island2Unlocked) {
-      ctx.fillStyle = 'rgba(2, 6, 23, 0.68)';
+    if (!this.deps.progress.shipUpgrades.includes('ghostlight_lantern')) {
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
       ctx.beginPath();
-      ctx.arc(168, 156, 50, 0, Math.PI * 2);
+      ctx.arc(34, 122, 34, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -208,7 +214,7 @@ export class OverworldScene implements Scene {
     ctx.lineTo(shipPoint.x, shipPoint.y - (this.deps.progress.shipUpgrades.includes('reinforced_mast') ? 15 : 11));
     ctx.stroke();
 
-    ctx.fillStyle = '#38bdf8';
+    ctx.fillStyle = this.deps.progress.shipUpgrades.includes('ghostlight_lantern') ? '#ec4899' : '#38bdf8';
     ctx.fillRect(shipPoint.x, shipPoint.y - 13, 7, 5);
   }
 
@@ -216,19 +222,23 @@ export class OverworldScene implements Scene {
     ctx.fillStyle = '#020617';
     ctx.fillRect(0, 320, 240, 80);
 
-    const fragmentCount = this.deps.progress.completedIslands.length;
+    const fragmentCount = this.deps.progress.completedIslands.filter((id) => id.startsWith('island_')).length;
 
     ctx.fillStyle = TOKENS.colorText;
     ctx.font = TOKENS.fontSmall;
     ctx.textAlign = 'left';
     ctx.fillText(`FRAG ${fragmentCount}/5`, 12, 342);
 
-    const heading = this.selectedNodeId === 'island_02' ? 'ESE' : 'WNW';
+    const heading = this.selectedNodeId === 'hidden_reef' ? 'NW' : this.selectedNodeId === 'island_05' ? 'NE' : 'ESE';
     ctx.fillText(`HEAD ${heading}`, 12, 360);
 
     if (this.deps.progress.shipUpgrades.includes('reinforced_mast')) {
       ctx.fillStyle = '#4ade80';
-      ctx.fillText('MAST +20% SAIL', 12, 378);
+      ctx.fillText('MAST +20%', 12, 378);
+    }
+    if (this.deps.progress.shipUpgrades.includes('ghostlight_lantern')) {
+      ctx.fillStyle = '#ec4899';
+      ctx.fillText('LANTERN ON', 84, 378);
     }
 
     const canSail = this.phase !== 'sailing' && this.selectedNodeId && this.selectedNodeId !== this.sailFromNodeId;
@@ -242,12 +252,28 @@ export class OverworldScene implements Scene {
     ctx.fillText(this.phase === 'sailing' ? 'SAILING…' : 'SAIL', SAIL_BUTTON.x + SAIL_BUTTON.w / 2, 371);
   }
 
-  private getDefaultSelectedNode(): NodeDefinition | undefined {
-    if (this.deps.fromIslandId) {
-      return NODES.find((node) => node.islandId === this.deps.fromIslandId);
+  private emitSighting(): void {
+    let sightingType = 'open_sea';
+    if (this.deps.progress.completedIslands.includes('island_04')) {
+      sightingType = 'kraken_tentacle';
+    } else if (this.deps.progress.completedIslands.includes('island_02')) {
+      sightingType = 'null_ship';
+    } else if (this.selectedNodeId === 'island_02') {
+      sightingType = 'storm_front';
     }
 
-    return NODES.find((node) => this.isIslandUnlocked(node.islandId));
+    this.deps.telemetry.emit(TELEMETRY_EVENTS.sightingShown, {
+      sighting_type: sightingType,
+      route_id: this.currentRouteId,
+    });
+  }
+
+  private getDefaultSelectedNode() {
+    if (this.deps.fromIslandId) {
+      return OVERWORLD_NODES.find((node) => node.islandId === this.deps.fromIslandId);
+    }
+
+    return OVERWORLD_NODES.find((node) => this.isIslandUnlocked(node.islandId));
   }
 
   private get currentRouteId(): string {
@@ -255,8 +281,8 @@ export class OverworldScene implements Scene {
   }
 
   private getShipPoint(): { x: number; y: number } {
-    const fromNode = NODES.find((node) => node.islandId === this.sailFromNodeId) ?? NODES[0];
-    const toNode = NODES.find((node) => node.islandId === this.selectedNodeId) ?? fromNode;
+    const fromNode = OVERWORLD_NODES.find((node) => node.islandId === this.sailFromNodeId) ?? OVERWORLD_NODES[0];
+    const toNode = OVERWORLD_NODES.find((node) => node.islandId === this.selectedNodeId) ?? fromNode;
 
     if (!fromNode || !toNode) {
       return { x: 72, y: 224 };
@@ -272,8 +298,11 @@ export class OverworldScene implements Scene {
     };
   }
 
-  private pickNode(x: number, y: number): NodeDefinition | undefined {
-    return NODES.find((node) => pointInRect(x, y, { x: node.x - 14, y: node.y - 14, w: 28, h: 28 }));
+  private pickNode(x: number, y: number) {
+    return OVERWORLD_NODES.find((node) =>
+      pointInRect(x, y, { x: node.x - 14, y: node.y - 14, w: 28, h: 28 }) &&
+      (!node.secret || this.deps.progress.shipUpgrades.includes('ghostlight_lantern')),
+    );
   }
 
   private isIslandUnlocked(islandId: string): boolean {

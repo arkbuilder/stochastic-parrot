@@ -6,6 +6,8 @@ export interface EncounterStartData {
   landmarks: LandmarkEntity[];
   placedConceptIds: string[];
   startedAtMs: number;
+  activeUpgrades: string[];
+  conceptOriginIsland?: Record<string, string>;
 }
 
 export interface RewardData {
@@ -14,6 +16,7 @@ export interface RewardData {
   grade: 'S' | 'A' | 'B' | 'C' | 'D';
   expertBonus: boolean;
   comboPeak: number;
+  encounterType?: 'fog' | 'storm' | 'battle' | 'ruins' | 'squid';
 }
 
 export interface IslandResult {
@@ -27,4 +30,5 @@ export interface OverworldProgress {
   unlockedIslands: string[];
   islandResults: IslandResult[];
   shipUpgrades: string[];
+  expertBonusIslands: string[];
 }

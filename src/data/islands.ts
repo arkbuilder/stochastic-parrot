@@ -80,4 +80,17 @@ export const ISLANDS: IslandConfig[] = [
     unlockAfter: 'island_04',
     reward: 'golden_chart',
   },
+  {
+    id: 'hidden_reef',
+    name: 'Hidden Reef',
+    encounterType: 'ruins',
+    conceptIds: ['training_data', 'reward_function', 'generalization'],
+    landmarks: [
+      { id: 'reef_crates', conceptId: 'training_data', x: 56, y: 286 },
+      { id: 'reef_scale', conceptId: 'reward_function', x: 122, y: 212 },
+      { id: 'reef_keygate', conceptId: 'generalization', x: 185, y: 254 },
+    ],
+    unlockAfter: 'island_05',
+    reward: 'hidden_reef_relic',
+  },
 ];

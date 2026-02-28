@@ -28,6 +28,7 @@ interface EncounterSceneDeps {
 }
 
 const STORM_FLASH_BASE_MS = 550;
+const DEFAULT_RETRY_COOLDOWN_MS = 1500;
 
 export class EncounterScene implements Scene {
   private readonly threat = createFogThreat();
@@ -35,6 +36,7 @@ export class EncounterScene implements Scene {
   private readonly landmarks: LandmarkEntity[];
   private readonly recallState;
   private readonly encounterTemplate;
+  private readonly upgrades: Set<string>;
 
   private elapsedMs = 0;
   private retryCooldownMs = 0;
@@ -47,22 +49,32 @@ export class EncounterScene implements Scene {
   private stormFlashMsRemaining = STORM_FLASH_BASE_MS;
   private stormNextFlashInMs = 900;
 
+  private battleEnemyHealthRatio = 1;
+  private battleHitsTaken = 0;
+
+  private squidTotalFailures = 0;
+  private squidAutoReleaseUsed = false;
+
   constructor(private readonly data: EncounterStartData, private readonly deps: EncounterSceneDeps) {
     this.landmarks = data.landmarks;
+    this.upgrades = new Set(data.activeUpgrades);
+
     const prompts = data.placedConceptIds.map((conceptId) => {
       const targetLandmark = this.landmarks.find((landmark) => landmark.state.conceptId === conceptId);
+      const originIsland = data.conceptOriginIsland?.[conceptId];
       return {
         id: `prompt_${conceptId}`,
         conceptId,
-        correctLandmarkId: targetLandmark?.id ?? '',
+        correctLandmarkId:
+          this.data.encounterType === 'squid' ? (originIsland ?? targetLandmark?.id ?? '') : (targetLandmark?.id ?? ''),
       } satisfies RecallPrompt;
     });
 
     this.encounterTemplate =
-      ENCOUNTERS.find((entry) => entry.type === data.encounterType) ??
-      ENCOUNTERS.find((entry) => entry.type === 'fog')!;
+      ENCOUNTERS.find((entry) => entry.type === data.encounterType) ?? ENCOUNTERS.find((entry) => entry.type === 'fog')!;
 
-    this.recallState = createRecallState(prompts, this.encounterTemplate.timeWindowMs);
+    const promptWindowMs = this.encounterTemplate.timeWindowMs + (this.upgrades.has('golden_compass') ? 2_000 : 0);
+    this.recallState = createRecallState(prompts, promptWindowMs);
   }
 
   enter(context: SceneContext): void {
@@ -94,7 +106,7 @@ export class EncounterScene implements Scene {
 
     if (this.data.encounterType === 'storm') {
       this.updateStormCycle(dtMs);
-    } else {
+    } else if (this.data.encounterType === 'fog') {
       const threatResult = updateThreatSystem(this.threat, dt);
       if (threatResult.failed) {
         this.handleEncounterFail('fog_engulf');
@@ -124,17 +136,7 @@ export class EncounterScene implements Scene {
       return;
     }
 
-    const selectedLandmark = this.landmarks.find((landmark) =>
-      pointInRect(
-        selectAction.x,
-        selectAction.y,
-        landmark.position.x - landmark.bounds.w / 2,
-        landmark.position.y - landmark.bounds.h / 2,
-        landmark.bounds.w,
-        landmark.bounds.h,
-      ),
-    );
-
+    const selectedLandmark = this.pickLandmarkFromAction(selectAction);
     if (!selectedLandmark) {
       return;
     }
@@ -159,33 +161,7 @@ export class EncounterScene implements Scene {
     });
 
     if (result.correct) {
-      this.promptFailStreak = 0;
-      this.assistLandmarkId = null;
-
-      if (this.data.encounterType === 'storm') {
-        this.threat.state.healthRatio = Math.min(1, this.threat.state.healthRatio + 0.08);
-      } else {
-        applyRecallOutcomeToThreat(this.threat, true);
-        this.deps.audio.play(AudioEvent.FogPushBack);
-      }
-
-      this.deps.audio.play(AudioEvent.RecallCorrect);
-      this.particles.emitSparkle(selectedLandmark.position.x, selectedLandmark.position.y);
-      this.comboPeak = Math.max(this.comboPeak, result.comboMultiplier);
-
-      this.deps.telemetry.emit(TELEMETRY_EVENTS.scorePromptEarned, {
-        prompt_id: promptId,
-        base_points: calculateBasePoints(attemptNumber),
-        speed_multiplier: result.speedMultiplier,
-        combo_multiplier: result.comboMultiplier,
-        total: result.scoreAwarded,
-      });
-
-      if (result.sequenceComplete) {
-        this.resolveEncounter();
-      } else {
-        this.emitPromptedTelemetry();
-      }
+      this.handleCorrectAnswer(result, promptId, attemptNumber, selectedLandmark);
       return;
     }
 
@@ -221,6 +197,12 @@ export class EncounterScene implements Scene {
 
     if (this.data.encounterType === 'storm') {
       this.renderStorm(ctx);
+    } else if (this.data.encounterType === 'battle') {
+      this.renderBattle(ctx);
+    } else if (this.data.encounterType === 'ruins') {
+      this.renderRuins(ctx);
+    } else if (this.data.encounterType === 'squid') {
+      this.renderSquid(ctx);
     } else {
       this.renderFog(ctx);
     }
@@ -250,6 +232,14 @@ export class EncounterScene implements Scene {
     return this.stormFlashMsRemaining > 0;
   }
 
+  private pickLandmarkFromAction(action: Extract<InputAction, { type: 'primary' }>): LandmarkEntity | undefined {
+    return this.landmarks.find((landmark) => {
+      const left = landmark.position.x - landmark.bounds.w / 2;
+      const top = landmark.position.y - landmark.bounds.h / 2;
+      return pointInRect(action.x, action.y, left, top, landmark.bounds.w, landmark.bounds.h);
+    });
+  }
+
   private updateStormCycle(dtMs: number): void {
     this.stormNextFlashInMs -= dtMs;
     this.stormFlashMsRemaining = Math.max(0, this.stormFlashMsRemaining - dtMs);
@@ -275,17 +265,92 @@ export class EncounterScene implements Scene {
     });
   }
 
+  private handleCorrectAnswer(
+    result: ReturnType<typeof answerRecall>,
+    promptId: string,
+    attemptNumber: number,
+    selectedLandmark: LandmarkEntity,
+  ): void {
+    this.promptFailStreak = 0;
+    this.assistLandmarkId = null;
+
+    if (this.data.encounterType === 'storm') {
+      this.threat.state.healthRatio = Math.min(1, this.threat.state.healthRatio + 0.08);
+    } else if (this.data.encounterType === 'battle') {
+      this.battleEnemyHealthRatio = Math.max(0, this.battleEnemyHealthRatio - 0.34);
+    } else if (this.data.encounterType === 'squid') {
+      this.threat.state.fogDepth = Math.max(0, this.threat.state.fogDepth - 0.18);
+      this.threat.state.healthRatio = Math.max(0, 1 - this.threat.state.fogDepth);
+    } else if (this.data.encounterType === 'fog') {
+      applyRecallOutcomeToThreat(this.threat, true);
+      this.deps.audio.play(AudioEvent.FogPushBack);
+    }
+
+    this.deps.audio.play(AudioEvent.RecallCorrect);
+    this.particles.emitSparkle(selectedLandmark.position.x, selectedLandmark.position.y);
+    this.comboPeak = Math.max(this.comboPeak, result.comboMultiplier);
+
+    this.deps.telemetry.emit(TELEMETRY_EVENTS.scorePromptEarned, {
+      prompt_id: promptId,
+      base_points: calculateBasePoints(attemptNumber),
+      speed_multiplier: result.speedMultiplier,
+      combo_multiplier: result.comboMultiplier,
+      total: result.scoreAwarded,
+    });
+
+    if (result.sequenceComplete) {
+      this.resolveEncounter();
+    } else {
+      this.emitPromptedTelemetry();
+    }
+  }
+
   private handleWrongAttempt(): void {
     this.promptFailStreak += 1;
     this.expertEligible = false;
 
     if (this.data.encounterType === 'storm') {
-      this.threat.state.healthRatio = Math.max(0, this.threat.state.healthRatio - 0.25);
+      const stormHitBudget = this.upgrades.has('ironclad_hull') ? 5 : 4;
+      this.threat.state.healthRatio = Math.max(0, this.threat.state.healthRatio - 1 / stormHitBudget);
       this.threat.state.shakeFrames = 3;
       if (this.threat.state.healthRatio <= 0) {
         this.handleEncounterFail('storm_damage');
         return;
       }
+    } else if (this.data.encounterType === 'battle') {
+      const battleHitBudget = this.upgrades.has('enchanted_cannon') ? 4 : 3;
+      this.battleHitsTaken += 1;
+      this.threat.state.healthRatio = Math.max(0, 1 - this.battleHitsTaken / battleHitBudget);
+      this.threat.state.shakeFrames = 3;
+      if (this.battleHitsTaken >= battleHitBudget) {
+        this.handleEncounterFail('battle_sunk');
+        return;
+      }
+    } else if (this.data.encounterType === 'ruins') {
+      this.recallState.currentPromptIndex = 0;
+      this.recallState.attemptsForCurrentPrompt = 0;
+      this.recallState.firstAttemptStreak = 0;
+      this.recallState.promptTimeRemainingMs = this.recallState.promptMaxTimeMs;
+      this.recallState.timedOut = false;
+      this.enableAssistIfNeeded();
+      this.emitPromptedTelemetry();
+      return;
+    } else if (this.data.encounterType === 'squid') {
+      this.squidTotalFailures += 1;
+      this.threat.state.fogDepth = Math.min(1, this.threat.state.fogDepth + 0.12);
+      this.threat.state.healthRatio = Math.max(0, 1 - this.threat.state.fogDepth);
+      if (this.squidTotalFailures >= 4 && !this.squidAutoReleaseUsed) {
+        this.squidAutoReleaseUsed = true;
+        this.recallState.currentPromptIndex = Math.min(
+          this.recallState.prompts.length - 1,
+          this.recallState.currentPromptIndex + 2,
+        );
+        this.deps.telemetry.emit(TELEMETRY_EVENTS.encounterAssistTriggered, {
+          prompt_id: this.currentPrompt?.id,
+          assist_type: 'tentacle_auto_release',
+        });
+      }
+      this.retryCooldownMs = 600;
     } else {
       applyRecallOutcomeToThreat(this.threat, false);
     }
@@ -296,8 +361,8 @@ export class EncounterScene implements Scene {
     this.enableAssistIfNeeded();
   }
 
-  private handleEncounterFail(reason: 'fog_engulf' | 'storm_damage'): void {
-    this.retryCooldownMs = 1500;
+  private handleEncounterFail(reason: 'fog_engulf' | 'storm_damage' | 'battle_sunk'): void {
+    this.retryCooldownMs = DEFAULT_RETRY_COOLDOWN_MS;
     this.deps.audio.play(AudioEvent.RecallTimeout);
     this.deps.telemetry.emit(TELEMETRY_EVENTS.retryStart, {
       island_id: this.data.islandId,
@@ -312,6 +377,7 @@ export class EncounterScene implements Scene {
 
     this.threat.state.fogDepth = 0.35;
     this.threat.state.healthRatio = 0.65;
+    this.battleHitsTaken = 1;
   }
 
   private enableAssistIfNeeded(): void {
@@ -386,6 +452,81 @@ export class EncounterScene implements Scene {
     }
   }
 
+  private renderBattle(ctx: CanvasRenderingContext2D): void {
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 240, 400);
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(36, 250, 44, 24);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(164, 104, 48, 24);
+
+    ctx.fillStyle = '#22d3ee';
+    ctx.fillRect(12, 18, this.threat.state.healthRatio * 88, 6);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(140, 18, this.battleEnemyHealthRatio * 88, 6);
+
+    for (const landmark of this.landmarks) {
+      const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
+      ctx.fillStyle = isTarget ? '#22d3ee' : '#64748b';
+      ctx.fillRect(landmark.position.x - 10, landmark.position.y - 10, 20, 20);
+      if (this.assistLandmarkId === landmark.id) {
+        ctx.strokeStyle = '#4ade80';
+        ctx.strokeRect(landmark.position.x - 14, landmark.position.y - 14, 28, 28);
+      }
+    }
+  }
+
+  private renderRuins(ctx: CanvasRenderingContext2D): void {
+    ctx.fillStyle = '#1e1b4b';
+    ctx.fillRect(0, 0, 240, 400);
+
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(24, 80, 192, 128);
+
+    const slots = this.recallState.prompts.length;
+    const slotWidth = 40;
+    for (let index = 0; index < slots; index += 1) {
+      const x = 48 + index * 52;
+      const solved = index < this.recallState.currentPromptIndex;
+      ctx.strokeStyle = solved ? '#facc15' : '#94a3b8';
+      ctx.strokeRect(x, 120, slotWidth, 30);
+      if (solved) {
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(x + 6, 126, slotWidth - 12, 18);
+      }
+    }
+
+    for (const landmark of this.landmarks) {
+      const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
+      ctx.fillStyle = isTarget ? '#22d3ee' : '#64748b';
+      ctx.fillRect(landmark.position.x - 10, landmark.position.y - 10, 20, 20);
+      if (this.assistLandmarkId === landmark.id) {
+        ctx.strokeStyle = '#4ade80';
+        ctx.strokeRect(landmark.position.x - 14, landmark.position.y - 14, 28, 28);
+      }
+    }
+  }
+
+  private renderSquid(ctx: CanvasRenderingContext2D): void {
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, 240, 400);
+
+    ctx.fillStyle = '#ec4899';
+    ctx.fillRect(96, 32, 48, 24);
+
+    for (const landmark of this.landmarks) {
+      const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
+      ctx.fillStyle = isTarget ? '#f472b6' : '#7c3aed';
+      ctx.fillRect(landmark.position.x - 12, landmark.position.y - 28, 24, 56);
+
+      if (this.assistLandmarkId === landmark.id) {
+        ctx.strokeStyle = '#4ade80';
+        ctx.strokeRect(landmark.position.x - 16, landmark.position.y - 32, 32, 64);
+      }
+    }
+  }
+
   private renderPromptHint(ctx: CanvasRenderingContext2D): void {
     if (!this.currentPrompt) {
       return;
@@ -394,7 +535,16 @@ export class EncounterScene implements Scene {
     ctx.fillStyle = TOKENS.colorText;
     ctx.font = TOKENS.fontSmall;
     ctx.textAlign = 'left';
-    const modeLabel = this.data.encounterType === 'storm' ? 'STORM FLASH' : 'FOG RECALL';
+    const modeLabel =
+      this.data.encounterType === 'storm'
+        ? 'STORM FLASH'
+        : this.data.encounterType === 'battle'
+          ? 'NULL DUEL'
+          : this.data.encounterType === 'ruins'
+            ? 'RUINS CHAIN'
+            : this.data.encounterType === 'squid'
+              ? 'KRAKEN RECALL'
+              : 'FOG RECALL';
     ctx.fillText(
       `${modeLabel} ${this.recallState.currentPromptIndex + 1}/${this.recallState.prompts.length}`,
       8,
@@ -424,7 +574,8 @@ export class EncounterScene implements Scene {
 
     this.resolved = true;
     const maxPossible = computeMaxPromptScore(this.recallState.prompts.length) + 500;
-    const score = computeIslandScore(this.recallState.totalScore, 0, this.expertEligible);
+    const deadReckonerBonus = this.data.encounterType === 'squid' && this.expertEligible ? 2000 : 0;
+    const score = computeIslandScore(this.recallState.totalScore, 0, this.expertEligible) + deadReckonerBonus;
     const grade = gradeFromRatio(score / maxPossible);
 
     this.deps.telemetry.emit(TELEMETRY_EVENTS.recallPhaseComplete, {
@@ -452,14 +603,14 @@ export class EncounterScene implements Scene {
       grade,
     });
     this.deps.telemetry.emit(TELEMETRY_EVENTS.beatCompleted, {
-      beat_id: this.data.islandId === 'island_01' ? 'B4' : 'I2_STORM',
+      beat_id: this.data.encounterType,
       island_id: this.data.islandId,
     });
 
     if (this.expertEligible) {
       this.deps.telemetry.emit(TELEMETRY_EVENTS.secretFound, {
         island_id: this.data.islandId,
-        secret_type: this.data.encounterType === 'storm' ? 'storm_relic' : 'expert_bonus_cave',
+        secret_type: this.data.encounterType === 'squid' ? 'dead_reckoner' : 'expert_bonus',
       });
     }
 
@@ -469,6 +620,7 @@ export class EncounterScene implements Scene {
       grade,
       expertBonus: this.expertEligible,
       comboPeak: this.comboPeak,
+      encounterType: this.data.encounterType,
     });
   }
 }

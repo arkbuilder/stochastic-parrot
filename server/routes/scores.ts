@@ -44,6 +44,19 @@ router.get('/', (req, res) => {
   const db = getDb();
 
   const islandFilter = query.boardType === 'island' ? (query.islandId ?? 'island_01') : null;
+  const orderBy =
+    query.boardType === 'speed'
+      ? 'h.time_ms ASC, h.score DESC'
+      : query.boardType === 'accuracy'
+        ? 'h.accuracy_pct DESC, h.time_ms ASC'
+        : 'h.score DESC, h.time_ms ASC';
+
+  const rankOrderBy =
+    query.boardType === 'speed'
+      ? 'h.time_ms ASC, h.score DESC'
+      : query.boardType === 'accuracy'
+        ? 'h.accuracy_pct DESC, h.time_ms ASC'
+        : 'h.score DESC, h.time_ms ASC';
 
   const top = db
     .prepare(
@@ -51,7 +64,7 @@ router.get('/', (req, res) => {
        FROM highscores h
        JOIN players p ON p.id = h.player_id
        WHERE h.board_type = ? AND (? IS NULL OR h.island_id = ?)
-       ORDER BY h.score DESC, h.time_ms ASC
+       ORDER BY ${orderBy}
        LIMIT 10`,
     )
     .all(query.boardType, islandFilter, islandFilter);
@@ -60,7 +73,7 @@ router.get('/', (req, res) => {
     .prepare(
       `SELECT rank FROM (
          SELECT h.player_id as playerId,
-                ROW_NUMBER() OVER (ORDER BY h.score DESC, h.time_ms ASC) as rank
+            ROW_NUMBER() OVER (ORDER BY ${rankOrderBy}) as rank
          FROM highscores h
          WHERE h.board_type = ? AND (? IS NULL OR h.island_id = ?)
        ) ranked

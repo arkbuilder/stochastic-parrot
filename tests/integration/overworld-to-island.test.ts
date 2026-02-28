@@ -11,6 +11,7 @@ describe('overworld to island flow', () => {
         unlockedIslands: ['island_01', 'island_02'],
         islandResults: [{ islandId: 'island_01', score: 1200, grade: 'A' }],
         shipUpgrades: ['reinforced_mast'],
+        expertBonusIslands: ['island_01'],
       },
       fromIslandId: 'island_01',
       telemetry: {
@@ -26,7 +27,7 @@ describe('overworld to island flow', () => {
 
     scene.enter({ now: () => 0 });
 
-    scene.update(0, [{ type: 'primary', x: 168, y: 156 }]);
+    scene.update(0, [{ type: 'primary', x: 108, y: 194 }]);
     scene.update(0, [{ type: 'primary', x: 120, y: 360 }]);
 
     for (let index = 0; index < 80; index += 1) {

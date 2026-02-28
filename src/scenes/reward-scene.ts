@@ -81,6 +81,11 @@ export class RewardScene implements Scene {
       ctx.fillRect(100, 268, 40, 4);
     }
 
+    if (this.reward.encounterType === 'squid' && this.reward.expertBonus) {
+      ctx.fillStyle = '#f472b6';
+      ctx.fillText('DEAD RECKONER +2000', 120, 286);
+    }
+
     ctx.fillStyle = '#1f2937';
     ctx.fillRect(CONTINUE_BUTTON.x, CONTINUE_BUTTON.y, CONTINUE_BUTTON.w, CONTINUE_BUTTON.h);
     ctx.strokeStyle = TOKENS.colorCyan400;

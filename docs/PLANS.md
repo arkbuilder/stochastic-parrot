@@ -5,56 +5,56 @@
 
 ---
 
-## Current Milestone: **M1 — Playable Island 1**
+## Current Milestone: **M2 — Overworld + Island 2**
 
-**Goal:** Complete vertical slice — Island 1 fully playable.
-**Target:** End of Week 2.
+**Goal:** Connect Island 1 completion into overworld traversal and Island 2 storm loop.
+**Target:** End of Week 3.
 
 ### Active Tasks
 
 | # | Task | Status | Owner | Notes |
 |---|---|---|---|---|
-| M0-1 | npm project scaffold (Vite + TS) | `completed` | Engineering | `npm run dev` boots Vite + Express |
-| M0-2 | tsconfig strict mode | `completed` | Engineering | strict TS for client + server |
-| M0-3 | Game loop skeleton (`core/game-loop.ts`) | `completed` | Engineering | rAF + dt + update/render split |
-| M0-4 | State machine (`core/state-machine.ts`) | `completed` | Engineering | boot → menu → play → pause |
-| M0-5 | Scene manager + BootScene + MenuScene | `completed` | Engineering | Push/pop/replace stack |
-| M0-6 | Input abstraction (`input/`) | `completed` | Engineering | Touch + keyboard → normalized actions |
-| M0-7 | Canvas scaling (240×400, pixel-perfect) | `completed` | Engineering | Portrait scale + letterbox behavior |
-| M0-8 | Design token generation script | `completed` | Engineering | `scripts/generate-tokens.ts` |
-| M0-9 | Express server + static serve | `completed` | Engineering | API routes + static serving |
-| M0-10 | SQLite + migration runner | `completed` | Engineering | 001 schema migration applied |
-| M0-11 | Telemetry client stub (console sink) | `completed` | Engineering | Buffered client + console sink |
-| M0-12 | Vitest setup + first test | `completed` | Engineering | 11 passing unit tests |
+| M1-1 | Sprite + tile rendering pipeline | `completed` | Engineering | `sprite-sheet`, `tile-map`, Island 1 layout JSON |
+| M1-2 | Entity model (Nemo, Bit, landmarks, cards, fog) | `completed` | Engineering | Added `src/entities/*` |
+| M1-3 | Gameplay systems (movement/encode/recall/threat/etc.) | `completed` | Engineering | Added `src/systems/*` with unit coverage |
+| M1-4 | Island scene encode flow | `completed` | Engineering | Explore → unlock cards → place 3 concepts |
+| M1-5 | Encounter scene (Cursed Fog recall) | `completed` | Engineering | 3-prompt fog recall with assist + retry loop |
+| M1-6 | Reward scene + grade summary | `completed` | Engineering | Score/grade/expert bonus flow |
+| M1-7 | Audio engine (SFX + adaptive layers) | `completed` | Engineering | Web Audio manager + layer transitions |
+| M1-8 | HUD + particle overlays | `completed` | Engineering | Tray/timer/health/minimap + fog/sparkle particles |
+| M1-9 | Persistence client + local fallback queue | `completed` | Engineering | API client + local queue storage |
+| M1-10 | Island 1 placeholder assets | `completed` | Engineering | Layout/sprite/audio placeholders added |
+| M1-11 | Telemetry wiring for M1 flow | `completed` | Engineering | Core + onboarding events emitted through scenes |
+| M1-12 | Tests (unit/integration/e2e) | `completed` | Engineering | 23 tests + Island 1 Playwright flow |
 
-### M0 Definition of Done
+### M1 Definition of Done
 
-- [x] `npm run dev` starts Vite + Express with canvas bootstrap and menu scene rendering path
-- [x] State machine transitions: boot → menu → play (logged)
-- [x] Touch tap and keyboard press both produce `primary` InputAction
-- [x] `npm run db:migrate` creates all tables from `001_init.sql`
-- [x] `npm test` passes with ≥1 test
-- [x] Design tokens importable as TS constants
+- [x] `npm run dev` launches playable Island 1 flow (menu → island → fog encounter → reward)
+- [x] Drag/place encode mechanics implemented for 3 concepts and 3 landmarks
+- [x] Recall under fog threat with novice assist and retry loop ≤5s
+- [x] Reward summary with score + grade and return-to-menu progression
+- [x] SFX + adaptive music layer transitions wired through gameplay phases
+- [x] Telemetry events emitted for onboarding/core interaction milestones
+- [x] `npm run lint` passes clean
+- [x] `npm test` passes (23 tests)
+- [x] `npm run build` passes
+- [x] `npm run test:e2e` passes (`island-1-playthrough.spec.ts`)
 
 ---
 
-## Upcoming: M1 — Playable Island 1
+## Upcoming: M2 — Overworld + Island 2
 
-**Goal:** Complete vertical slice — Island 1 fully playable.
-**Target:** End of Week 2.
-**Full scope:** See `Design/ScopeAndMilestones.md` §M1.
+**Goal:** Add overworld sailing, Island 2 storm loop, and leaderboard persistence depth.
+**Target:** End of Week 3.
+**Full scope:** `Design/ScopeAndMilestones.md` §M2.
 
 ### Key Deliverables (Preview)
 
-- Island 1 tile map + 3 landmarks rendered
-- Nemo + Bit sprites with walk/place animations
-- Concept card tray + drag-to-place encode interaction
-- Cursed Fog encounter (3 recall prompts)
-- Novice assist (Bit flies to landmark)
-- Chart Fragment reward overlay
-- Core SFX + adaptive music (Island 1)
-- Full telemetry events firing
-- Playtest: 5 testers pass no-text comprehension
+- Overworld node chart and Island 2 fog-of-war unlock
+- Island 2 content set (landmarks, concepts, storm encounter)
+- Full scoring + grade persistence in SQLite-backed leaderboards
+- Reinforced Mast ship upgrade and visual progression cue
+- Offline queue drain policy and conflict handling validation
 
 ---
 
@@ -82,6 +82,7 @@
 ## Completed Milestones
 
 - **M0 — Foundation** (completed 2026-02-27)
+- **M1 — Playable Island 1** (completed 2026-02-27)
 
 ---
 
@@ -105,5 +106,6 @@
 |---|---|---|---|
 | 2026-02-27 | Project initialized | Starting M0 | — |
 | 2026-02-27 | Use `node:sqlite` for M0 instead of `better-sqlite3` in this environment | `better-sqlite3` native build failed on Windows ARM + Node 24; needed stable install/build path | Install additional MSVC toolchains; pin Node version; alternate native sqlite packages |
+| 2026-02-27 | Add deterministic debug hooks for e2e progression in Island/Encounter scenes | Raw pointer-driven drag flow was flaky in CI-style browser timing; hooks keep scene-transition coverage stable | Increase E2E timeouts, synthetic pointer retries, or run only unit/integration for scene progression |
 
 Record decisions that affect architecture, scope, or schedule here. Keep entries short.

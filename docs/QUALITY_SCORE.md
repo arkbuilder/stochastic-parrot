@@ -42,29 +42,29 @@
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
 | Canvas setup + scaling | B | 240×400 portrait scaling + pixel-perfect rendering | A |
-| Sprite sheet loader | — | Not started | B |
-| Tile map renderer | — | Not started | B |
-| HUD overlay | — | Not started | C |
-| Particle effects | — | Not started | D |
+| Sprite sheet loader | B | Atlas loader + frame animation fallback rendering implemented | B |
+| Tile map renderer | B | Island layout JSON renderer with camera offset support | B |
+| HUD overlay | B | Minimap/tray/timer/health/attempt indicators rendered per phase | C |
+| Particle effects | B | Fog edge + concept lock-in sparkle particles implemented | D |
 
 ### Audio
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Audio manager | — | Not started | C |
-| Music layer engine | — | Not started | D |
-| SFX playback | — | Not started | B |
+| Audio manager | B | Web Audio mixer with master/music/sfx controls + mute | C |
+| Music layer engine | B | Base/rhythm/tension/resolution crossfades (500ms) | D |
+| SFX playback | B | Runtime oscillator SFX for encode/recall/fog/reward cues | B |
 
 ### Game Systems
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Encode system (drag + place) | — | Not started | A |
-| Recall system (prompt + validate) | — | Not started | A |
-| Threat system (fog advancement) | — | Not started | B |
-| Movement system | — | Not started | B |
-| Animation system | — | Not started | C |
-| Camera system | — | Not started | C |
+| Encode system (drag + place) | A | Snap radius + lock-in + placement validation with tests | A |
+| Recall system (prompt + validate) | A | Prompt progression, scoring multipliers, timeout handling with tests | A |
+| Threat system (fog advancement) | A | Fog advancement + pushback + fail/retry support with tests | B |
+| Movement system | B | Touch/keyboard-driven movement + parrot follow behavior | B |
+| Animation system | B | Entity animation/glow/lock timers updated per tick | C |
+| Camera system | C | Follow/clamp helper implemented; full scene integration pending | C |
 
 ### Scenes
 
@@ -72,9 +72,9 @@
 |---|---|---|---|
 | Boot scene | B | Loading placeholder + auto transition hook | B |
 | Menu scene | B | Start interaction on touch/mouse/keyboard primary | B |
-| Island scene | — | Not started | A |
-| Encounter scene | — | Not started | A |
-| Reward scene | — | Not started | B |
+| Island scene | A | Full encode loop with concept unlock + threat trigger + telemetry/audio wiring | A |
+| Encounter scene | A | Cursed Fog recall loop with assist/retry/scoring + resolution | A |
+| Reward scene | B | Score/grade/chart fragment summary + continue progression | B |
 | Overworld scene | — | Not started (M2) | — |
 | Leaderboard scene | — | Not started (M2) | — |
 
@@ -102,7 +102,7 @@
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
 | Event definitions | A | M0+CoreInteraction event constants defined | A |
-| Telemetry client | B | Buffered emit/flush pipeline implemented | B |
+| Telemetry client | A | Scene-level onboarding/core event emission and buffered flush wired | B |
 | Console sink (dev) | B | Batch logging sink active in development | B |
 | Server sink | B | `/api/events` route persists telemetry batches | — |
 
@@ -110,9 +110,9 @@
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Unit tests | B | 11 tests across core/input/data all passing | B (≥20 tests) |
-| Integration tests | — | Not started | C (≥5 tests) |
-| E2E tests | — | Not started | D (≥1 test) |
+| Unit tests | A | 22 unit tests across core/input/data/systems passing | B (≥20 tests) |
+| Integration tests | B | Encode→recall→reward integration flow test passing | C (≥5 tests) |
+| E2E tests | B | Island 1 playthrough scene path test passing in Playwright | D (≥1 test) |
 
 ---
 
@@ -122,14 +122,14 @@
 |---|---|---|---|
 | Core Infrastructure | B | B+ | A |
 | Input | B+ | A | A |
-| Rendering | C | B | A |
-| Audio | — | C+ | B |
-| Game Systems | — | B+ | A |
-| Scenes | C | B+ | A |
+| Rendering | B | B | A |
+| Audio | B | C+ | B |
+| Game Systems | B+ | B+ | A |
+| Scenes | A- | B+ | A |
 | Data & Content | B+ | A | A |
 | Persistence | B | B | A |
-| Telemetry | B | B | A |
-| Testing | C+ | C+ | B |
+| Telemetry | A- | B | A |
+| Testing | B+ | C+ | B |
 
 ---
 

@@ -22,9 +22,15 @@ interface IslandSceneDeps {
   onThreatTriggered: (data: EncounterStartData) => void;
   telemetry: TelemetryClient;
   audio: AudioManager;
+  onPause?: () => void;
+  onConceptPlaced?: (conceptId: string) => void;
+  onConceptDiscovered?: (conceptId: string) => void;
 }
 
 type IslandPhase = 'island_arrive' | 'exploring' | 'encoding' | 'threat_triggered';
+
+const PAUSE_BUTTON = { x: 206, y: 8, w: 24, h: 22 };
+const ASSET_LOAD_TIMEOUT_MS = 10_000;
 
 export class IslandScene implements Scene {
   private readonly island: (typeof ISLANDS)[number];
@@ -96,6 +102,18 @@ export class IslandScene implements Scene {
   update(dt: number, actions: InputAction[]): void {
     this.nowMs += dt * 1000;
 
+    const pauseAction = actions.find((action) => action.type === 'pause');
+    const pauseTap = actions.find(
+      (action): action is Extract<InputAction, { type: 'primary' }> =>
+        action.type === 'primary' && action.x >= PAUSE_BUTTON.x && action.y >= PAUSE_BUTTON.y &&
+        action.x <= PAUSE_BUTTON.x + PAUSE_BUTTON.w && action.y <= PAUSE_BUTTON.y + PAUSE_BUTTON.h,
+    );
+
+    if (pauseAction || pauseTap) {
+      this.deps.onPause?.();
+      return;
+    }
+
     if (!this.firstInputSeen && actions.length > 0) {
       this.firstInputSeen = true;
       this.deps.telemetry.emit(TELEMETRY_EVENTS.firstInput, { input_count: actions.length });
@@ -121,6 +139,9 @@ export class IslandScene implements Scene {
 
     for (const event of encodeEvents) {
       if (event.type === 'concept_placed') {
+        if (event.conceptId) {
+          this.deps.onConceptPlaced?.(event.conceptId);
+        }
         this.deps.audio.play(AudioEvent.ConceptPlaced);
         this.particles.emitSparkle(this.player.position.x, this.player.position.y - 8);
         this.deps.telemetry.emit(TELEMETRY_EVENTS.conceptPlaced, {
@@ -200,6 +221,14 @@ export class IslandScene implements Scene {
       ctx.textAlign = 'center';
       ctx.fillText(this.island.name, 120, 200);
     }
+
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(PAUSE_BUTTON.x, PAUSE_BUTTON.y, PAUSE_BUTTON.w, PAUSE_BUTTON.h);
+    ctx.strokeStyle = TOKENS.colorCyan400;
+    ctx.strokeRect(PAUSE_BUTTON.x, PAUSE_BUTTON.y, PAUSE_BUTTON.w, PAUSE_BUTTON.h);
+    ctx.fillStyle = TOKENS.colorText;
+    ctx.font = TOKENS.fontSmall;
+    ctx.fillText('II', PAUSE_BUTTON.x + 12, PAUSE_BUTTON.y + 15);
   }
 
   private unlockConceptCardsByProximity(): void {
@@ -216,14 +245,38 @@ export class IslandScene implements Scene {
     if (distance(this.player.position, targetLandmark.position) <= 40) {
       nextCard.state.unlocked = true;
       nextCard.state.appearedAtMs = this.nowMs;
+      this.deps.onConceptDiscovered?.(nextCard.state.conceptId);
     }
   }
 
   private async loadLayout(): Promise<void> {
     try {
-      this.tileMap = await TileMap.load(`/layouts/${this.island.id}/layout.json`);
+      this.tileMap = await this.loadLayoutWithTimeout(`/layouts/${this.island.id}/layout.json`);
     } catch {
       this.tileMap = new TileMap(fallbackLayout);
+    }
+  }
+
+  private async loadLayoutWithTimeout(path: string): Promise<TileMap> {
+    let timeoutId = 0;
+    const timeout = new Promise<TileMap>((_resolve, reject) => {
+      timeoutId = window.setTimeout(() => {
+        reject(new Error('layout_timeout'));
+      }, ASSET_LOAD_TIMEOUT_MS);
+    });
+
+    try {
+      return await Promise.race([TileMap.load(path), timeout]);
+    } catch {
+      this.deps.telemetry.emit(TELEMETRY_EVENTS.assetLoadTimeout, {
+        asset_path: path,
+        timeout_ms: ASSET_LOAD_TIMEOUT_MS,
+      });
+      throw new Error('layout_timeout');
+    } finally {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
     }
   }
 

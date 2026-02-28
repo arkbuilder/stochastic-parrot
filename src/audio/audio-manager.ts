@@ -9,6 +9,10 @@ export class AudioManager {
   private sfxGain: GainNode | null = null;
   private sfx: SfxEngine | null = null;
   private music: MusicLayerEngine | null = null;
+  private muted = false;
+  private masterVolume = 0.6;
+  private musicVolume = 0.5;
+  private sfxVolume = 0.6;
 
   initialize(): void {
     if (this.context) {
@@ -20,9 +24,9 @@ export class AudioManager {
     this.musicGain = this.context.createGain();
     this.sfxGain = this.context.createGain();
 
-    this.masterGain.gain.value = 0.6;
-    this.musicGain.gain.value = 0.5;
-    this.sfxGain.gain.value = 0.6;
+    this.masterGain.gain.value = this.muted ? 0 : this.masterVolume;
+    this.musicGain.gain.value = this.musicVolume;
+    this.sfxGain.gain.value = this.sfxVolume;
 
     this.musicGain.connect(this.masterGain);
     this.sfxGain.connect(this.masterGain);
@@ -52,22 +56,45 @@ export class AudioManager {
   }
 
   setMuted(muted: boolean): void {
-    if (!this.masterGain) {
-      return;
-    }
+    this.muted = muted;
+    this.syncVolumes();
+  }
 
-    this.masterGain.gain.value = muted ? 0 : 0.6;
+  setMasterVolume(value: number): void {
+    this.masterVolume = clamp01(value);
+    this.syncVolumes();
   }
 
   setMusicVolume(value: number): void {
-    if (this.musicGain) {
-      this.musicGain.gain.value = clamp01(value);
-    }
+    this.musicVolume = clamp01(value);
+    this.syncVolumes();
   }
 
   setSfxVolume(value: number): void {
+    this.sfxVolume = clamp01(value);
+    this.syncVolumes();
+  }
+
+  getSnapshot(): { muted: boolean; masterVolume: number; musicVolume: number; sfxVolume: number } {
+    return {
+      muted: this.muted,
+      masterVolume: this.masterVolume,
+      musicVolume: this.musicVolume,
+      sfxVolume: this.sfxVolume,
+    };
+  }
+
+  private syncVolumes(): void {
+    if (this.masterGain) {
+      this.masterGain.gain.value = this.muted ? 0 : this.masterVolume;
+    }
+
+    if (this.musicGain) {
+      this.musicGain.gain.value = this.musicVolume;
+    }
+
     if (this.sfxGain) {
-      this.sfxGain.gain.value = clamp01(value);
+      this.sfxGain.gain.value = this.sfxVolume;
     }
   }
 }

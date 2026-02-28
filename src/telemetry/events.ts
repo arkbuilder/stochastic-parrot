@@ -36,6 +36,14 @@ export const TELEMETRY_EVENTS = {
   encounterAssistTriggered: 'encounter_assist_triggered',
   encounterCompleted: 'encounter_completed',
   encounterFailed: 'encounter_failed',
+  hudJournalViewed: 'hud_journal_viewed',
+  sessionResumed: 'session_resumed',
+  offlineQueueDrain: 'offline_queue_drain',
+  audioMuted: 'audio_muted',
+  clientError: 'client_error',
+  stateMachineError: 'state_machine_error',
+  assetLoadTimeout: 'asset_load_timeout',
+  perfCritical: 'perf_critical',
 } as const;
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENTS)[keyof typeof TELEMETRY_EVENTS];

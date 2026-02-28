@@ -1,6 +1,7 @@
 import type { Scene, SceneContext } from '../core/types';
 import type { InputAction } from '../input/types';
 import { TOKENS } from '../rendering/tokens';
+import { ParticleSystem } from '../rendering/particles';
 import type { AudioManager } from '../audio/audio-manager';
 import { AudioEvent } from '../audio/types';
 import type { TelemetryClient } from '../telemetry/telemetry-client';
@@ -16,12 +17,22 @@ interface RewardSceneDeps {
 const CONTINUE_BUTTON = { x: 68, y: 318, w: 104, h: 36 };
 
 export class RewardScene implements Scene {
+  private elapsedMs = 0;
+  private displayedScore = 0;
+  private readonly particles = new ParticleSystem();
+
   constructor(private readonly reward: RewardData, private readonly deps: RewardSceneDeps) {}
 
   enter(context: SceneContext): void {
     void context;
+    this.elapsedMs = 0;
+    this.displayedScore = 0;
     this.deps.audio.setMusicLayers(['base', 'resolution']);
     this.deps.audio.play(AudioEvent.ChartFragmentEarned);
+
+    for (let index = 0; index < 18; index += 1) {
+      this.particles.emitSparkle(120 + (Math.random() - 0.5) * 100, 130 + (Math.random() - 0.5) * 60);
+    }
 
     this.deps.telemetry.emit(TELEMETRY_EVENTS.rewardSeen, {
       island_id: this.reward.islandId,
@@ -32,7 +43,12 @@ export class RewardScene implements Scene {
 
   exit(): void {}
 
-  update(_dt: number, actions: InputAction[]): void {
+  update(dt: number, actions: InputAction[]): void {
+    this.elapsedMs += dt * 1000;
+    this.particles.update(dt);
+    const progress = Math.min(1, this.elapsedMs / 900);
+    this.displayedScore = Math.floor(this.reward.islandScore * progress);
+
     const press = actions.find((action) => action.type === 'primary');
     if (!press) {
       return;
@@ -67,11 +83,20 @@ export class RewardScene implements Scene {
     ctx.fillText('CHART FRAGMENT', 120, 76);
 
     this.renderFragment(ctx);
+    this.particles.render(ctx);
 
     ctx.fillStyle = TOKENS.colorText;
     ctx.font = TOKENS.fontSmall;
-    ctx.fillText(`SCORE ${this.reward.islandScore}`, 120, 206);
-    ctx.fillText(`GRADE ${this.reward.grade}`, 120, 224);
+    ctx.fillText(`SCORE ${this.displayedScore}`, 120, 206);
+
+    const gradeReveal = Math.min(1, this.elapsedMs / 600);
+    const gradeScale = 0.8 + gradeReveal * 0.2;
+    ctx.save();
+    ctx.translate(120, 224);
+    ctx.scale(gradeScale, gradeScale);
+    ctx.fillText(`GRADE ${this.reward.grade}`, 0, 0);
+    ctx.restore();
+
     ctx.fillText(`COMBO x${this.reward.comboPeak.toFixed(1)}`, 120, 242);
 
     if (this.reward.expertBonus) {

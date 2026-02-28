@@ -1,4 +1,4 @@
-import type { ProgressSubmission, ScoreSubmission, TelemetryBatch } from './types';
+import type { ConceptMasteryState, ProgressSubmission, ScoreSubmission, TelemetryBatch } from './types';
 
 export interface LeaderboardEntry {
   playerId: string;
@@ -39,8 +39,10 @@ export class ApiClient {
     return this.get<LeaderboardResponse>(`/api/scores?${params.toString()}`);
   }
 
-  async getProgress(playerId: string): Promise<{ progress: ProgressSubmission[] }> {
-    return this.get<{ progress: ProgressSubmission[] }>(`/api/progress?playerId=${encodeURIComponent(playerId)}`);
+  async getProgress(playerId: string): Promise<{ progress: ProgressSubmission[]; conceptMastery: ConceptMasteryState[] }> {
+    return this.get<{ progress: ProgressSubmission[]; conceptMastery: ConceptMasteryState[] }>(
+      `/api/progress?playerId=${encodeURIComponent(playerId)}`,
+    );
   }
 
   private async post(path: string, payload: unknown): Promise<void> {

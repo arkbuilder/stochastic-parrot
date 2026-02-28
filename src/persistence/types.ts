@@ -34,3 +34,27 @@ export interface TelemetryBatch {
     ts?: string;
   }>;
 }
+
+export type MasteryLevel = 'discovered' | 'placed' | 'recalled' | 'mastered';
+
+export interface ConceptMasteryState {
+  conceptId: string;
+  masteryLevel: MasteryLevel;
+  recallCount: number;
+}
+
+export interface AccessibilitySettings {
+  reducedMotion: boolean;
+  highContrast: boolean;
+  visualOnlyMode: boolean;
+  muteAll: boolean;
+  masterVolume: number;
+  musicVolume: number;
+  sfxVolume: number;
+}
+
+export interface SessionSave {
+  islandId: string;
+  phase: 'encode' | 'recall';
+  timestampMs: number;
+}

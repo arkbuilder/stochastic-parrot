@@ -39,7 +39,16 @@ router.get('/', (req, res) => {
     )
     .all(playerId);
 
-  res.json({ progress });
+  const conceptMastery = db
+    .prepare(
+      `SELECT concept_id as conceptId, mastery_level as masteryLevel, recall_count as recallCount
+       FROM concept_mastery
+       WHERE player_id = ?
+       ORDER BY concept_id ASC`,
+    )
+    .all(playerId);
+
+  res.json({ progress, conceptMastery });
 });
 
 router.post('/', validateBody(progressSchema), (req, res) => {

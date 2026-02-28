@@ -9,9 +9,33 @@ export interface Particle {
 }
 
 export class ParticleSystem {
+  private static reducedMotion = false;
+  private static performanceDisabled = false;
+  private static frameSkip = false;
+
   private particles: Particle[] = [];
 
+  static setReducedMotion(enabled: boolean): void {
+    ParticleSystem.reducedMotion = enabled;
+  }
+
+  static setPerformanceDisabled(enabled: boolean): void {
+    ParticleSystem.performanceDisabled = enabled;
+  }
+
+  static setFrameSkip(enabled: boolean): void {
+    ParticleSystem.frameSkip = enabled;
+  }
+
+  private static get isSuppressed(): boolean {
+    return ParticleSystem.reducedMotion || ParticleSystem.performanceDisabled || ParticleSystem.frameSkip;
+  }
+
   emitFogEdge(x: number, y: number): void {
+    if (ParticleSystem.isSuppressed) {
+      return;
+    }
+
     this.particles.push({
       x,
       y,
@@ -24,6 +48,10 @@ export class ParticleSystem {
   }
 
   emitSparkle(x: number, y: number): void {
+    if (ParticleSystem.isSuppressed) {
+      return;
+    }
+
     for (let i = 0; i < 6; i += 1) {
       this.particles.push({
         x,
@@ -38,6 +66,10 @@ export class ParticleSystem {
   }
 
   update(dt: number): void {
+    if (ParticleSystem.isSuppressed) {
+      return;
+    }
+
     this.particles = this.particles
       .map((particle) => ({
         ...particle,
@@ -49,6 +81,10 @@ export class ParticleSystem {
   }
 
   render(ctx: CanvasRenderingContext2D): void {
+    if (ParticleSystem.isSuppressed) {
+      return;
+    }
+
     for (const particle of this.particles) {
       ctx.globalAlpha = Math.max(0, particle.life);
       ctx.fillStyle = particle.color;

@@ -25,10 +25,13 @@ interface EncounterSceneDeps {
   onResolved: (reward: RewardData) => void;
   telemetry: TelemetryClient;
   audio: AudioManager;
+  onPause?: () => void;
+  isReducedMotionEnabled?: () => boolean;
 }
 
 const STORM_FLASH_BASE_MS = 550;
 const DEFAULT_RETRY_COOLDOWN_MS = 1500;
+const PAUSE_BUTTON = { x: 206, y: 8, w: 24, h: 22 };
 
 export class EncounterScene implements Scene {
   private readonly threat = createFogThreat();
@@ -98,6 +101,18 @@ export class EncounterScene implements Scene {
     const dtMs = dt * 1000;
     this.elapsedMs += dtMs;
     this.particles.update(dt);
+
+    const pauseAction = actions.find((action) => action.type === 'pause');
+    const pauseTap = actions.find(
+      (action): action is Extract<InputAction, { type: 'primary' }> =>
+        action.type === 'primary' && action.x >= PAUSE_BUTTON.x && action.y >= PAUSE_BUTTON.y &&
+        action.x <= PAUSE_BUTTON.x + PAUSE_BUTTON.w && action.y <= PAUSE_BUTTON.y + PAUSE_BUTTON.h,
+    );
+
+    if (pauseAction || pauseTap) {
+      this.deps.onPause?.();
+      return;
+    }
 
     if (this.retryCooldownMs > 0) {
       this.retryCooldownMs -= dtMs;
@@ -189,8 +204,9 @@ export class EncounterScene implements Scene {
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    const shakeOffsetX = this.threat.state.shakeFrames > 0 ? (Math.random() - 0.5) * 4 : 0;
-    const shakeOffsetY = this.threat.state.shakeFrames > 0 ? (Math.random() - 0.5) * 4 : 0;
+    const reducedMotion = this.deps.isReducedMotionEnabled?.() ?? false;
+    const shakeOffsetX = this.threat.state.shakeFrames > 0 && !reducedMotion ? (Math.random() - 0.5) * 4 : 0;
+    const shakeOffsetY = this.threat.state.shakeFrames > 0 && !reducedMotion ? (Math.random() - 0.5) * 4 : 0;
 
     ctx.save();
     ctx.translate(shakeOffsetX, shakeOffsetY);
@@ -220,6 +236,15 @@ export class EncounterScene implements Scene {
     });
 
     this.renderPromptHint(ctx);
+
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(PAUSE_BUTTON.x, PAUSE_BUTTON.y, PAUSE_BUTTON.w, PAUSE_BUTTON.h);
+    ctx.strokeStyle = TOKENS.colorCyan400;
+    ctx.strokeRect(PAUSE_BUTTON.x, PAUSE_BUTTON.y, PAUSE_BUTTON.w, PAUSE_BUTTON.h);
+    ctx.fillStyle = TOKENS.colorText;
+    ctx.font = TOKENS.fontSmall;
+    ctx.textAlign = 'center';
+    ctx.fillText('II', PAUSE_BUTTON.x + 12, PAUSE_BUTTON.y + 15);
 
     ctx.restore();
   }

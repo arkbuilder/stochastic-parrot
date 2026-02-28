@@ -1,4 +1,10 @@
-import type { ProgressSubmission, ScoreSubmission } from './types';
+import type {
+  AccessibilitySettings,
+  ConceptMasteryState,
+  ProgressSubmission,
+  ScoreSubmission,
+  SessionSave,
+} from './types';
 import type { ApiClient, LeaderboardResponse } from './api-client';
 
 type QueueItem =
@@ -7,8 +13,22 @@ type QueueItem =
 
 const QUEUE_KEY = 'dr_offline_queue';
 const LEADERBOARD_CACHE_KEY = 'dr_leaderboard_cache';
+const SETTINGS_KEY = 'dr_accessibility_settings';
+const SESSION_KEY = 'dr_session_state';
+const MASTERY_KEY = 'dr_concept_mastery';
 const MAX_QUEUE_SIZE = 100;
 const MAX_RETRIES = 3;
+const MAX_RESUME_AGE_MS = 60 * 60 * 1000;
+
+const DEFAULT_SETTINGS: AccessibilitySettings = {
+  reducedMotion: false,
+  highContrast: false,
+  visualOnlyMode: false,
+  muteAll: false,
+  masterVolume: 0.6,
+  musicVolume: 0.5,
+  sfxVolume: 0.6,
+};
 
 export class LocalStore {
   saveScore(payload: ScoreSubmission): void {
@@ -81,6 +101,90 @@ export class LocalStore {
     return cache[cacheKey] ?? null;
   }
 
+  saveAccessibilitySettings(settings: AccessibilitySettings): void {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }
+
+  loadAccessibilitySettings(): AccessibilitySettings {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) {
+      return { ...DEFAULT_SETTINGS };
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as Partial<AccessibilitySettings>;
+      return {
+        reducedMotion: Boolean(parsed.reducedMotion),
+        highContrast: Boolean(parsed.highContrast),
+        visualOnlyMode: Boolean(parsed.visualOnlyMode),
+        muteAll: Boolean(parsed.muteAll),
+        masterVolume: clamp01(parsed.masterVolume ?? DEFAULT_SETTINGS.masterVolume),
+        musicVolume: clamp01(parsed.musicVolume ?? DEFAULT_SETTINGS.musicVolume),
+        sfxVolume: clamp01(parsed.sfxVolume ?? DEFAULT_SETTINGS.sfxVolume),
+      };
+    } catch {
+      return { ...DEFAULT_SETTINGS };
+    }
+  }
+
+  saveSessionSave(save: SessionSave): void {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(save));
+  }
+
+  loadSessionSave(): SessionSave | null {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as SessionSave;
+      if (!parsed.islandId || (parsed.phase !== 'encode' && parsed.phase !== 'recall')) {
+        this.clearSessionSave();
+        return null;
+      }
+
+      const ageMs = Date.now() - parsed.timestampMs;
+      if (ageMs > MAX_RESUME_AGE_MS) {
+        this.clearSessionSave();
+        return null;
+      }
+
+      return parsed;
+    } catch {
+      this.clearSessionSave();
+      return null;
+    }
+  }
+
+  clearSessionSave(): void {
+    localStorage.removeItem(SESSION_KEY);
+  }
+
+  saveConceptMastery(entries: ConceptMasteryState[]): void {
+    localStorage.setItem(MASTERY_KEY, JSON.stringify(entries));
+  }
+
+  loadConceptMastery(): ConceptMasteryState[] {
+    const raw = localStorage.getItem(MASTERY_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as Array<Partial<ConceptMasteryState>>;
+      return parsed
+        .filter((entry) => typeof entry.conceptId === 'string')
+        .map((entry) => ({
+          conceptId: entry.conceptId as string,
+          masteryLevel: normalizeMasteryLevel(entry.masteryLevel),
+          recallCount: Math.max(0, Math.floor(entry.recallCount ?? 0)),
+        }));
+    } catch {
+      return [];
+    }
+  }
+
   private enqueue(item: QueueItem): void {
     const current = this.readQueue();
     current.push(item);
@@ -102,4 +206,15 @@ export class LocalStore {
       return {};
     }
   }
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeMasteryLevel(level: unknown): ConceptMasteryState['masteryLevel'] {
+  if (level === 'mastered' || level === 'recalled' || level === 'placed') {
+    return level;
+  }
+  return 'discovered';
 }

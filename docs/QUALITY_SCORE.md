@@ -23,25 +23,25 @@
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Game loop (`core/game-loop.ts`) | — | Not started | B |
-| State machine (`core/state-machine.ts`) | — | Not started | A |
-| Scene manager (`core/scene-manager.ts`) | — | Not started | B |
-| Clock / timing (`core/clock.ts`) | — | Not started | B |
+| Game loop (`core/game-loop.ts`) | B | rAF loop wired with poll/update/render/present | B |
+| State machine (`core/state-machine.ts`) | B | Transition guard + transition records + tests | A |
+| Scene manager (`core/scene-manager.ts`) | B | Stack push/pop/replace lifecycle implemented | B |
+| Clock / timing (`core/clock.ts`) | A | Pause-aware dt + reset behavior with tests | B |
 
 ### Input
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Touch provider | — | Not started | B |
-| Keyboard provider | — | Not started | B |
-| Input manager (unified) | — | Not started | A |
-| Coordinate normalization | — | Not started | A |
+| Touch provider | B | Pointer primary/drag/secondary events normalized | B |
+| Keyboard provider | B | WASD/arrows + Enter/Space/Escape mapping | B |
+| Input manager (unified) | B | Provider aggregation and normalized poll API | A |
+| Coordinate normalization | A | Screen→game mapping validated in unit test | A |
 
 ### Rendering
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Canvas setup + scaling | — | Not started | A |
+| Canvas setup + scaling | B | 240×400 portrait scaling + pixel-perfect rendering | A |
 | Sprite sheet loader | — | Not started | B |
 | Tile map renderer | — | Not started | B |
 | HUD overlay | — | Not started | C |
@@ -70,8 +70,8 @@
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Boot scene | — | Not started | B |
-| Menu scene | — | Not started | B |
+| Boot scene | B | Loading placeholder + auto transition hook | B |
+| Menu scene | B | Start interaction on touch/mouse/keyboard primary | B |
 | Island scene | — | Not started | A |
 | Encounter scene | — | Not started | A |
 | Reward scene | — | Not started | B |
@@ -82,35 +82,35 @@
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Concept definitions | — | Not started | A |
-| Island 1 config | — | Not started | A |
-| Encounter templates | — | Not started | B |
-| Recall prompts (Island 1) | — | Not started | A |
+| Concept definitions | A | All 15 canonical concepts included with islands/landmarks | A |
+| Island 1 config | B | Island config scaffolded with landmark coordinates | A |
+| Encounter templates | B | 5 encounter templates with tuning knobs | B |
+| Recall prompts (Island 1) | B | Prompt set seeded from curriculum mappings | A |
 
 ### Persistence
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| SQLite schema + migrations | — | Not started | A |
-| Express server | — | Not started | B |
-| Score API | — | Not started (M2) | — |
-| Progress API | — | Not started | B |
-| Telemetry API | — | Not started | C |
+| SQLite schema + migrations | A | Full `001_init.sql` + migration runner validated | A |
+| Express server | B | API bootstrapped with JSON + static serving + health | B |
+| Score API | C | Basic GET/POST route implemented; checksum enforcement pending | — |
+| Progress API | B | GET/POST upsert flow implemented with schema validation | B |
+| Telemetry API | B | Batch ingest route with persisted event log | C |
 
 ### Telemetry
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Event definitions | — | Not started | A |
-| Telemetry client | — | Not started | B |
-| Console sink (dev) | — | Not started | B |
-| Server sink | — | Not started (M2) | — |
+| Event definitions | A | M0+CoreInteraction event constants defined | A |
+| Telemetry client | B | Buffered emit/flush pipeline implemented | B |
+| Console sink (dev) | B | Batch logging sink active in development | B |
+| Server sink | B | `/api/events` route persists telemetry batches | — |
 
 ### Testing
 
 | Domain | Grade | Notes | Target (M1) |
 |---|---|---|---|
-| Unit tests | — | Not started | B (≥20 tests) |
+| Unit tests | B | 11 tests across core/input/data all passing | B (≥20 tests) |
 | Integration tests | — | Not started | C (≥5 tests) |
 | E2E tests | — | Not started | D (≥1 test) |
 
@@ -120,16 +120,16 @@
 
 | Category | Current Avg | M1 Target | M2 Target |
 |---|---|---|---|
-| Core Infrastructure | — | B+ | A |
-| Input | — | A | A |
-| Rendering | — | B | A |
+| Core Infrastructure | B | B+ | A |
+| Input | B+ | A | A |
+| Rendering | C | B | A |
 | Audio | — | C+ | B |
 | Game Systems | — | B+ | A |
-| Scenes | — | B+ | A |
-| Data & Content | — | A | A |
-| Persistence | — | B | A |
-| Telemetry | — | B | A |
-| Testing | — | C+ | B |
+| Scenes | C | B+ | A |
+| Data & Content | B+ | A | A |
+| Persistence | B | B | A |
+| Telemetry | B | B | A |
+| Testing | C+ | C+ | B |
 
 ---
 

@@ -5,36 +5,36 @@
 
 ---
 
-## Current Milestone: **M0 — Foundation**
+## Current Milestone: **M1 — Playable Island 1**
 
-**Goal:** Project bootstrapped, architecture validated, first screen renders.
-**Target:** End of Week 1.
+**Goal:** Complete vertical slice — Island 1 fully playable.
+**Target:** End of Week 2.
 
 ### Active Tasks
 
 | # | Task | Status | Owner | Notes |
 |---|---|---|---|---|
-| M0-1 | npm project scaffold (Vite + TS) | `not-started` | Engineering | `npm run dev` shows canvas |
-| M0-2 | tsconfig strict mode | `not-started` | Engineering | |
-| M0-3 | Game loop skeleton (`core/game-loop.ts`) | `not-started` | Engineering | rAF + dt + update/render split |
-| M0-4 | State machine (`core/state-machine.ts`) | `not-started` | Engineering | boot → menu → play → pause |
-| M0-5 | Scene manager + BootScene + MenuScene | `not-started` | Engineering | Push/pop/replace stack |
-| M0-6 | Input abstraction (`input/`) | `not-started` | Engineering | Touch + keyboard → normalized actions |
-| M0-7 | Canvas scaling (240×400, pixel-perfect) | `not-started` | Engineering | See docs/FRONTEND.md |
-| M0-8 | Design token generation script | `not-started` | Engineering | Aesthetic.md → tokens.ts |
-| M0-9 | Express server + static serve | `not-started` | Engineering | |
-| M0-10 | SQLite + migration runner | `not-started` | Engineering | 001_init.sql runs clean |
-| M0-11 | Telemetry client stub (console sink) | `not-started` | Engineering | Events log to console |
-| M0-12 | Vitest setup + first test | `not-started` | Engineering | state-machine.test.ts |
+| M0-1 | npm project scaffold (Vite + TS) | `completed` | Engineering | `npm run dev` boots Vite + Express |
+| M0-2 | tsconfig strict mode | `completed` | Engineering | strict TS for client + server |
+| M0-3 | Game loop skeleton (`core/game-loop.ts`) | `completed` | Engineering | rAF + dt + update/render split |
+| M0-4 | State machine (`core/state-machine.ts`) | `completed` | Engineering | boot → menu → play → pause |
+| M0-5 | Scene manager + BootScene + MenuScene | `completed` | Engineering | Push/pop/replace stack |
+| M0-6 | Input abstraction (`input/`) | `completed` | Engineering | Touch + keyboard → normalized actions |
+| M0-7 | Canvas scaling (240×400, pixel-perfect) | `completed` | Engineering | Portrait scale + letterbox behavior |
+| M0-8 | Design token generation script | `completed` | Engineering | `scripts/generate-tokens.ts` |
+| M0-9 | Express server + static serve | `completed` | Engineering | API routes + static serving |
+| M0-10 | SQLite + migration runner | `completed` | Engineering | 001 schema migration applied |
+| M0-11 | Telemetry client stub (console sink) | `completed` | Engineering | Buffered client + console sink |
+| M0-12 | Vitest setup + first test | `completed` | Engineering | 11 passing unit tests |
 
 ### M0 Definition of Done
 
-- [ ] `npm run dev` opens browser with a 240×400 canvas showing a menu screen
-- [ ] State machine transitions: boot → menu → play (logged)
-- [ ] Touch tap and keyboard press both produce `primary` InputAction
-- [ ] `npm run db:migrate` creates all tables from `001_init.sql`
-- [ ] `npm test` passes with ≥1 test
-- [ ] Design tokens importable as TS constants
+- [x] `npm run dev` starts Vite + Express with canvas bootstrap and menu scene rendering path
+- [x] State machine transitions: boot → menu → play (logged)
+- [x] Touch tap and keyboard press both produce `primary` InputAction
+- [x] `npm run db:migrate` creates all tables from `001_init.sql`
+- [x] `npm test` passes with ≥1 test
+- [x] Design tokens importable as TS constants
 
 ---
 
@@ -81,7 +81,7 @@
 
 ## Completed Milestones
 
-*None yet.*
+- **M0 — Foundation** (completed 2026-02-27)
 
 ---
 
@@ -103,6 +103,7 @@
 
 | Date | Decision | Rationale | Alternatives Considered |
 |---|---|---|---|
-| — | Project initialized | Starting M0 | — |
+| 2026-02-27 | Project initialized | Starting M0 | — |
+| 2026-02-27 | Use `node:sqlite` for M0 instead of `better-sqlite3` in this environment | `better-sqlite3` native build failed on Windows ARM + Node 24; needed stable install/build path | Install additional MSVC toolchains; pin Node version; alternate native sqlite packages |
 
 Record decisions that affect architecture, scope, or schedule here. Keep entries short.

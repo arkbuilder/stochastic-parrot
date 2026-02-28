@@ -1,4 +1,5 @@
 import type { Scene, SceneContext } from '../core/types';
+import { GAME_WIDTH, GAME_HEIGHT } from '../core/types';
 import type { InputAction } from '../input/types';
 import { TOKENS } from '../rendering/tokens';
 import type { AudioManager } from '../audio/audio-manager';
@@ -6,6 +7,9 @@ import type { TelemetryClient } from '../telemetry/telemetry-client';
 import { TELEMETRY_EVENTS } from '../telemetry/events';
 import type { ApiClient, LeaderboardResponse } from '../persistence/api-client';
 import type { LocalStore } from '../persistence/local-store';
+import {
+  drawSkyGradient, drawVignette, drawButton, roundRect, rgba,
+} from '../rendering/draw';
 
 interface LeaderboardSceneDeps {
   telemetry: TelemetryClient;
@@ -83,66 +87,113 @@ export class LeaderboardScene implements Scene {
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = '#0b1120';
-    ctx.fillRect(0, 0, 240, 400);
+    // Background
+    drawSkyGradient(ctx, GAME_WIDTH, '#050a14', '#0b1a30', GAME_HEIGHT);
 
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(BACK_BUTTON.x, BACK_BUTTON.y, BACK_BUTTON.w, BACK_BUTTON.h);
-    ctx.strokeStyle = TOKENS.colorCyan400;
-    ctx.strokeRect(BACK_BUTTON.x, BACK_BUTTON.y, BACK_BUTTON.w, BACK_BUTTON.h);
-    ctx.fillStyle = TOKENS.colorText;
-    ctx.font = TOKENS.fontSmall;
-    ctx.textAlign = 'center';
-    ctx.fillText('BACK', BACK_BUTTON.x + BACK_BUTTON.w / 2, 23);
+    // Back button
+    drawButton(ctx, BACK_BUTTON.x, BACK_BUTTON.y, BACK_BUTTON.w, BACK_BUTTON.h, '← BACK', false, 8);
 
+    // Title
     ctx.fillStyle = TOKENS.colorYellow400;
-    ctx.font = TOKENS.fontMedium;
-    ctx.fillText('LEADERBOARD', 120, 40);
+    ctx.font = TOKENS.fontLarge;
+    ctx.textAlign = 'center';
+    ctx.fillText('LEADERBOARD', GAME_WIDTH / 2, 42);
 
+    // Board type tabs
     for (const board of BOARD_BUTTONS) {
       this.renderBoardToggle(ctx, board.rect, board.label, this.selectedBoard === board.type);
     }
 
+    // Island selector
     if (this.selectedBoard === 'island') {
       this.renderIslandSelector(ctx);
     }
 
-    ctx.fillStyle = TOKENS.colorText;
+    // Table header
+    ctx.fillStyle = TOKENS.colorTextDark;
     ctx.font = TOKENS.fontSmall;
     ctx.textAlign = 'left';
+    ctx.fillText('#', 14, 110);
+    ctx.fillText('NAME', 34, 110);
+    ctx.textAlign = 'right';
+    ctx.fillText('SCORE', 182, 110);
+    ctx.fillText('GRD', 224, 110);
+    ctx.textAlign = 'left';
 
-    const startY = 114;
+    // Separator
+    ctx.strokeStyle = rgba(TOKENS.colorCyan400, 0.15);
+    ctx.beginPath();
+    ctx.moveTo(10, 114);
+    ctx.lineTo(GAME_WIDTH - 10, 114);
+    ctx.stroke();
+
+    // Rows
+    const startY = 128;
     const visibleRows = this.rows.slice(0, 10);
     for (let index = 0; index < visibleRows.length; index += 1) {
       const row = visibleRows[index];
-      if (!row) {
-        continue;
-      }
+      if (!row) continue;
 
-      const y = startY + index * 24;
+      const y = startY + index * 22;
       const isPlayer = row.playerId === this.deps.playerId;
+
+      // Row background
       if (isPlayer) {
-        ctx.strokeStyle = TOKENS.colorCyan400;
-        ctx.strokeRect(10, y - 14, 220, 20);
+        ctx.fillStyle = rgba(TOKENS.colorCyan400, 0.1);
+        roundRect(ctx, 8, y - 12, GAME_WIDTH - 16, 20, 3);
+        ctx.fill();
+        ctx.strokeStyle = rgba(TOKENS.colorCyan400, 0.4);
+        roundRect(ctx, 8, y - 12, GAME_WIDTH - 16, 20, 3);
+        ctx.stroke();
+      } else if (index % 2 === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        ctx.fillRect(8, y - 12, GAME_WIDTH - 16, 20);
       }
 
-      ctx.fillStyle = TOKENS.colorText;
-      ctx.fillText(`${index + 1}.`, 14, y);
-      ctx.fillText(row.displayName.slice(0, 12), 40, y);
+      // Rank
+      ctx.fillStyle = index < 3 ? TOKENS.colorYellow400 : TOKENS.colorText;
+      ctx.font = TOKENS.fontSmall;
+      ctx.textAlign = 'left';
+      ctx.fillText(`${index + 1}`, 14, y);
+
+      // Name
+      ctx.fillStyle = isPlayer ? TOKENS.colorCyan300 : TOKENS.colorText;
+      ctx.fillText(row.displayName.slice(0, 12), 34, y);
+
+      // Score + grade
       ctx.textAlign = 'right';
-      ctx.fillText(String(row.score), 186, y);
-      ctx.fillText(row.grade, 226, y);
+      ctx.fillStyle = TOKENS.colorText;
+      ctx.fillText(String(row.score), 182, y);
+      ctx.fillStyle = TOKENS.colorYellow400;
+      ctx.fillText(row.grade, 224, y);
       ctx.textAlign = 'left';
     }
 
-    const rankText = this.playerRank ? `YOUR RANK: ${this.playerRank}` : 'YOUR RANK: —';
+    // Empty state
+    if (visibleRows.length === 0 && !this.loading) {
+      ctx.fillStyle = TOKENS.colorTextMuted;
+      ctx.font = TOKENS.fontSmall;
+      ctx.textAlign = 'center';
+      ctx.fillText('NO SCORES YET', GAME_WIDTH / 2, 180);
+    }
+
+    // Bottom bar
+    ctx.fillStyle = rgba('#020617', 0.6);
+    ctx.fillRect(0, 360, GAME_WIDTH, 40);
+
+    const rankText = this.playerRank ? `YOUR RANK: #${this.playerRank}` : 'YOUR RANK: —';
     ctx.fillStyle = TOKENS.colorCyan400;
-    ctx.fillText(rankText, 12, 372);
+    ctx.font = TOKENS.fontSmall;
+    ctx.textAlign = 'left';
+    ctx.fillText(rankText, 12, 380);
 
     if (this.loading) {
-      ctx.fillStyle = TOKENS.colorText;
-      ctx.fillText('SYNCING…', 168, 372);
+      ctx.fillStyle = TOKENS.colorTextMuted;
+      ctx.textAlign = 'right';
+      ctx.fillText('SYNCING...', GAME_WIDTH - 12, 380);
     }
+
+    drawVignette(ctx, GAME_WIDTH, GAME_HEIGHT, 0.3);
   }
 
   private get availableIslandIds(): string[] {
@@ -157,22 +208,14 @@ export class LeaderboardScene implements Scene {
   }
 
   private renderIslandSelector(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(ISLAND_PREV.x, ISLAND_PREV.y, ISLAND_PREV.w, ISLAND_PREV.h);
-    ctx.fillRect(ISLAND_NEXT.x, ISLAND_NEXT.y, ISLAND_NEXT.w, ISLAND_NEXT.h);
-
-    ctx.strokeStyle = TOKENS.colorCyan400;
-    ctx.strokeRect(ISLAND_PREV.x, ISLAND_PREV.y, ISLAND_PREV.w, ISLAND_PREV.h);
-    ctx.strokeRect(ISLAND_NEXT.x, ISLAND_NEXT.y, ISLAND_NEXT.w, ISLAND_NEXT.h);
-
-    ctx.fillStyle = TOKENS.colorText;
-    ctx.font = TOKENS.fontSmall;
-    ctx.textAlign = 'center';
-    ctx.fillText('<', ISLAND_PREV.x + 12, ISLAND_PREV.y + 14);
-    ctx.fillText('>', ISLAND_NEXT.x + 12, ISLAND_NEXT.y + 14);
+    drawButton(ctx, ISLAND_PREV.x, ISLAND_PREV.y, ISLAND_PREV.w, ISLAND_PREV.h, '<', false, 10);
+    drawButton(ctx, ISLAND_NEXT.x, ISLAND_NEXT.y, ISLAND_NEXT.w, ISLAND_NEXT.h, '>', false, 10);
 
     const label = this.selectedIslandId.replace('island_', 'ISLAND ');
-    ctx.fillText(label, 120, 99);
+    ctx.fillStyle = TOKENS.colorText;
+    ctx.font = TOKENS.fontMedium;
+    ctx.textAlign = 'center';
+    ctx.fillText(label, GAME_WIDTH / 2, 99);
   }
 
   private renderBoardToggle(
@@ -181,14 +224,7 @@ export class LeaderboardScene implements Scene {
     label: string,
     active: boolean,
   ): void {
-    ctx.fillStyle = active ? '#1f2937' : '#111827';
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-    ctx.strokeStyle = active ? TOKENS.colorYellow400 : '#334155';
-    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-    ctx.fillStyle = TOKENS.colorText;
-    ctx.font = TOKENS.fontSmall;
-    ctx.textAlign = 'center';
-    ctx.fillText(label, rect.x + rect.w / 2, rect.y + 16);
+    drawButton(ctx, rect.x, rect.y, rect.w, rect.h, label, active, 8);
   }
 
   private fetchBoard(): void {

@@ -1,6 +1,7 @@
 import { GAME_HEIGHT, GAME_WIDTH, type Scene, type SceneContext } from '../core/types';
 import type { InputAction } from '../input/types';
 import { TOKENS } from '../rendering/tokens';
+import { drawButton, drawOceanGradient, drawSkyGradient, drawStars, drawShip, drawVignette, rgba } from '../rendering/draw';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -13,28 +14,29 @@ type MenuButton = {
 };
 
 const RESUME_BUTTON: Rect = {
-  x: 64,
+  x: 48,
   y: 238,
-  w: 112,
-  h: 34,
+  w: 144,
+  h: 38,
 };
 
 const START_BUTTON: Rect = {
-  x: 64,
+  x: 48,
   y: 280,
-  w: 112,
-  h: 34,
+  w: 144,
+  h: 38,
 };
 
 const LEADERBOARD_BUTTON: Rect = {
-  x: 64,
-  y: 322,
-  w: 112,
-  h: 30,
+  x: 48,
+  y: 326,
+  w: 144,
+  h: 32,
 };
 
 export class MenuScene implements Scene {
   private selectedIndex = 0;
+  private elapsed = 0;
 
   constructor(
     private readonly onStart: () => void,
@@ -45,6 +47,7 @@ export class MenuScene implements Scene {
 
   enter(context: SceneContext): void {
     void context;
+    this.elapsed = 0;
     this.selectedIndex = this.getButtons().findIndex((button) => button.item === 'start');
     if (this.selectedIndex < 0) {
       this.selectedIndex = 0;
@@ -53,7 +56,9 @@ export class MenuScene implements Scene {
 
   exit(): void {}
 
-  update(_dt: number, actions: InputAction[]): void {
+  update(dt: number, actions: InputAction[]): void {
+    this.elapsed += dt;
+
     for (const action of actions) {
       if (action.type === 'move') {
         const buttons = this.getButtons();
@@ -98,39 +103,56 @@ export class MenuScene implements Scene {
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = TOKENS.colorBackground;
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    const t = this.elapsed;
 
-    ctx.fillStyle = TOKENS.colorCyan400;
-    ctx.font = TOKENS.fontLarge;
+    // Sky gradient
+    drawSkyGradient(ctx, GAME_WIDTH, '#0b1628', '#162844', 160);
+
+    // Stars
+    drawStars(ctx, GAME_WIDTH, GAME_HEIGHT, t, 50);
+
+    // Ocean
+    drawOceanGradient(ctx, GAME_WIDTH, 140, GAME_HEIGHT - 140, t);
+
+    // Ship silhouette on the sea
+    drawShip(ctx, 120, 180, t, false, false);
+
+    // Vignette
+    drawVignette(ctx, GAME_WIDTH, GAME_HEIGHT, 0.5);
+
+    // Title glow
+    const titleGlow = 0.4 + Math.sin(t * 1.5) * 0.15;
+    ctx.fillStyle = rgba('#22d3ee', titleGlow);
+    ctx.font = TOKENS.fontTitle;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Dead Reckoning', GAME_WIDTH / 2, 120);
-    ctx.fillText('Memory Sea', GAME_WIDTH / 2, 142);
+    ctx.fillText('DEAD RECKONING', GAME_WIDTH / 2, 80);
 
-    ctx.fillStyle = TOKENS.colorPanel;
+    ctx.fillStyle = TOKENS.colorYellow400;
+    ctx.font = TOKENS.fontLarge;
+    ctx.fillText('Memory Sea', GAME_WIDTH / 2, 102);
+
+    // Subtitle
+    ctx.fillStyle = TOKENS.colorTextMuted;
+    ctx.font = TOKENS.fontSmall;
+    ctx.fillText('A Pirate AI Adventure', GAME_WIDTH / 2, 122);
+
+    // Buttons
     const buttons = this.getButtons();
     for (let index = 0; index < buttons.length; index += 1) {
       const button = buttons[index];
-      if (!button) {
-        continue;
-      }
-
+      if (!button) continue;
       const selected = index === this.selectedIndex;
-      ctx.fillStyle = TOKENS.colorPanel;
-      ctx.fillRect(button.rect.x, button.rect.y, button.rect.w, button.rect.h);
-
-      ctx.strokeStyle = selected ? TOKENS.colorYellow400 : TOKENS.colorCyan400;
-      ctx.strokeRect(button.rect.x, button.rect.y, button.rect.w, button.rect.h);
-
-      ctx.fillStyle = TOKENS.colorText;
-      ctx.font = button.item === 'leaderboard' ? TOKENS.fontSmall : TOKENS.fontMedium;
-      ctx.fillText(button.label, GAME_WIDTH / 2, button.rect.y + button.rect.h / 2 + (button.item === 'leaderboard' ? 1 : 0));
+      const fontSize = button.item === 'leaderboard' ? 10 : 12;
+      drawButton(ctx, button.rect.x, button.rect.y, button.rect.w, button.rect.h, button.label, selected, fontSize);
     }
 
-    ctx.fillStyle = TOKENS.colorText;
+    // Input hint
+    ctx.fillStyle = TOKENS.colorTextDark;
     ctx.font = TOKENS.fontSmall;
-    ctx.fillText('Tap, click, or Enter/Arrows', GAME_WIDTH / 2, 374);
+    ctx.textAlign = 'center';
+    ctx.fillText('Tap / Click / Enter / Arrows', GAME_WIDTH / 2, GAME_HEIGHT - 18);
+    ctx.textBaseline = 'alphabetic';
   }
 
   private getButtons(): MenuButton[] {
@@ -139,7 +161,7 @@ export class MenuScene implements Scene {
       buttons.push({ item: 'resume', label: 'RESUME', rect: RESUME_BUTTON });
     }
 
-    buttons.push({ item: 'start', label: 'START', rect: START_BUTTON });
+    buttons.push({ item: 'start', label: 'NEW VOYAGE', rect: START_BUTTON });
     buttons.push({ item: 'leaderboard', label: 'LEADERBOARD', rect: LEADERBOARD_BUTTON });
     return buttons;
   }

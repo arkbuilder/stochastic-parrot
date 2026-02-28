@@ -1,4 +1,4 @@
-export type EntityType = 'player' | 'parrot' | 'landmark' | 'concept-card' | 'threat';
+export type EntityType = 'player' | 'parrot' | 'landmark' | 'concept-card' | 'threat' | 'enemy' | 'powerup';
 
 export interface Vector2 {
   x: number;

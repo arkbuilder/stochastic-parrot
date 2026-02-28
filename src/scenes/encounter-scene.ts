@@ -1,8 +1,10 @@
 import type { Scene, SceneContext } from '../core/types';
+import { GAME_WIDTH, GAME_HEIGHT } from '../core/types';
 import type { InputAction } from '../input/types';
 import { renderHud } from '../rendering/hud';
 import { ParticleSystem } from '../rendering/particles';
 import { TOKENS } from '../rendering/tokens';
+import { drawLandmark, drawVignette, drawProgressDots, rgba, roundRect } from '../rendering/draw';
 import type { AudioManager } from '../audio/audio-manager';
 import { AudioEvent } from '../audio/types';
 import type { TelemetryClient } from '../telemetry/telemetry-client';
@@ -211,16 +213,18 @@ export class EncounterScene implements Scene {
     ctx.save();
     ctx.translate(shakeOffsetX, shakeOffsetY);
 
+    const t = this.elapsedMs / 1000;
+
     if (this.data.encounterType === 'storm') {
-      this.renderStorm(ctx);
+      this.renderStorm(ctx, t);
     } else if (this.data.encounterType === 'battle') {
-      this.renderBattle(ctx);
+      this.renderBattle(ctx, t);
     } else if (this.data.encounterType === 'ruins') {
-      this.renderRuins(ctx);
+      this.renderRuins(ctx, t);
     } else if (this.data.encounterType === 'squid') {
-      this.renderSquid(ctx);
+      this.renderSquid(ctx, t);
     } else {
-      this.renderFog(ctx);
+      this.renderFog(ctx, t);
     }
 
     this.particles.render(ctx);
@@ -235,12 +239,15 @@ export class EncounterScene implements Scene {
       attemptsUsed: Math.min(3, this.promptFailStreak),
     });
 
-    this.renderPromptHint(ctx);
+    this.renderPromptHint(ctx, t);
 
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(PAUSE_BUTTON.x, PAUSE_BUTTON.y, PAUSE_BUTTON.w, PAUSE_BUTTON.h);
+    // Pause button
+    ctx.fillStyle = TOKENS.colorPanel;
+    roundRect(ctx, PAUSE_BUTTON.x, PAUSE_BUTTON.y, PAUSE_BUTTON.w, PAUSE_BUTTON.h, 4);
+    ctx.fill();
     ctx.strokeStyle = TOKENS.colorCyan400;
-    ctx.strokeRect(PAUSE_BUTTON.x, PAUSE_BUTTON.y, PAUSE_BUTTON.w, PAUSE_BUTTON.h);
+    roundRect(ctx, PAUSE_BUTTON.x, PAUSE_BUTTON.y, PAUSE_BUTTON.w, PAUSE_BUTTON.h, 4);
+    ctx.stroke();
     ctx.fillStyle = TOKENS.colorText;
     ctx.font = TOKENS.fontSmall;
     ctx.textAlign = 'center';
@@ -416,150 +423,264 @@ export class EncounterScene implements Scene {
     }
   }
 
-  private renderFog(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = '#111827';
-    ctx.fillRect(0, 0, 240, 400);
+  private renderFog(ctx: CanvasRenderingContext2D, t: number): void {
+    // Gradient background
+    const grad = ctx.createLinearGradient(0, 0, 0, 400);
+    grad.addColorStop(0, '#0f172a');
+    grad.addColorStop(1, '#1e1b4b');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
+    // Landmarks with proper icons (scaled up for encounter visibility)
     for (const landmark of this.landmarks) {
       const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
-      ctx.fillStyle = isTarget ? '#22d3ee' : '#64748b';
-      ctx.fillRect(landmark.position.x - 10, landmark.position.y - 10, 20, 20);
+      const isAssist = this.assistLandmarkId === landmark.id;
+      const glow = isTarget ? 0.8 : isAssist ? 1.0 : 0;
+      drawLandmark(ctx, landmark.position.x, landmark.position.y, landmark.id, false, glow, t, 1.4);
 
-      if (this.assistLandmarkId === landmark.id) {
-        ctx.strokeStyle = '#4ade80';
-        ctx.strokeRect(landmark.position.x - 14, landmark.position.y - 14, 28, 28);
+      // "TAP HERE" pulsing indicator on target
+      if (isTarget) {
+        const pulse = 0.5 + Math.sin(t * 5) * 0.3;
+        ctx.fillStyle = rgba('#22d3ee', pulse);
+        ctx.font = TOKENS.fontSmall;
+        ctx.textAlign = 'center';
+        ctx.fillText('TAP', landmark.position.x, landmark.position.y + 20);
       }
     }
 
+    // Fog wall with gradient
     const fogHeight = Math.min(320, this.threat.state.fogDepth * 320);
-    ctx.fillStyle = 'rgba(40, 30, 60, 0.78)';
-    ctx.fillRect(0, 0, 240, fogHeight);
+    const fogGrad = ctx.createLinearGradient(0, 0, 0, fogHeight);
+    fogGrad.addColorStop(0, 'rgba(88, 28, 135, 0.85)');
+    fogGrad.addColorStop(0.7, 'rgba(40, 30, 60, 0.6)');
+    fogGrad.addColorStop(1, 'rgba(40, 30, 60, 0.15)');
+    ctx.fillStyle = fogGrad;
+    ctx.fillRect(0, 0, GAME_WIDTH, fogHeight);
 
+    // Fog edge particles
     for (let i = 0; i < 3; i += 1) {
-      this.particles.emitFogEdge(Math.random() * 240, fogHeight + Math.random() * 4);
+      this.particles.emitFogEdge(Math.random() * GAME_WIDTH, fogHeight + Math.random() * 4);
     }
+
+    drawVignette(ctx, GAME_WIDTH, GAME_HEIGHT, 0.35);
   }
 
-  private renderStorm(ctx: CanvasRenderingContext2D): void {
-    const flashAlpha = this.isStormFlashActive ? 1 : 0.2;
+  private renderStorm(ctx: CanvasRenderingContext2D, t: number): void {
+    const flashAlpha = this.isStormFlashActive ? 1 : 0.15;
     ctx.fillStyle = '#020617';
-    ctx.fillRect(0, 0, 240, 400);
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
-    for (let index = 0; index < 28; index += 1) {
-      const x = (index * 9 + (this.elapsedMs / 32) % 9) % 240;
-      const y = (index * 14 + (this.elapsedMs / 14) % 24) % 320;
+    // Rain effect
+    ctx.strokeStyle = rgba('#94a3b8', 0.3);
+    ctx.lineWidth = 1;
+    for (let index = 0; index < 32; index += 1) {
+      const x = (index * 8 + (this.elapsedMs / 28) % 16) % GAME_WIDTH;
+      const y = (index * 13 + (this.elapsedMs / 12) % 24) % 320;
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.lineTo(x - 3, y + 10);
+      ctx.lineTo(x - 2, y + 12);
       ctx.stroke();
     }
 
+    // Landmarks (scaled up for encounter visibility)
     for (const landmark of this.landmarks) {
       const showLandmark = this.isStormFlashActive || this.assistLandmarkId === landmark.id;
-      ctx.fillStyle = showLandmark ? 'rgba(34, 211, 238, 0.9)' : 'rgba(71, 85, 105, 0.35)';
-      if (this.assistLandmarkId === landmark.id) {
-        ctx.fillStyle = 'rgba(74, 222, 128, 0.95)';
-      }
-      ctx.fillRect(landmark.position.x - 10, landmark.position.y - 10, 20, 20);
+      const glow = showLandmark ? 0.9 : 0.15;
+      drawLandmark(ctx, landmark.position.x, landmark.position.y, landmark.id, false, glow, t, 1.4);
     }
 
+    // Lightning flash
     if (this.isStormFlashActive) {
-      ctx.fillStyle = `rgba(226, 232, 240, ${0.2 + flashAlpha * 0.2})`;
-      ctx.fillRect(0, 0, 240, 320);
-      ctx.strokeStyle = 'rgba(248, 250, 252, 0.9)';
+      ctx.fillStyle = rgba('#e2e8f0', 0.12 + flashAlpha * 0.1);
+      ctx.fillRect(0, 0, GAME_WIDTH, 320);
+
+      ctx.strokeStyle = rgba('#f8fafc', 0.85);
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(120, 0);
-      ctx.lineTo(136, 70);
-      ctx.lineTo(112, 70);
-      ctx.lineTo(128, 160);
+      ctx.lineTo(134, 65);
+      ctx.lineTo(114, 72);
+      ctx.lineTo(130, 155);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+
+      // Flash hint
+      ctx.fillStyle = rgba('#facc15', 0.8);
+      ctx.font = TOKENS.fontSmall;
+      ctx.textAlign = 'center';
+      ctx.fillText('RECALL NOW!', GAME_WIDTH / 2, 295);
+    }
+  }
+
+  private renderBattle(ctx: CanvasRenderingContext2D, t: number): void {
+    // Ocean battle scene
+    const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+    grad.addColorStop(0, '#0f172a');
+    grad.addColorStop(0.4, '#1e293b');
+    grad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    // Player ship
+    ctx.fillStyle = '#f59e0b';
+    roundRect(ctx, 28, 248, 56, 28, 4);
+    ctx.fill();
+    ctx.strokeStyle = '#92400e';
+    roundRect(ctx, 28, 248, 56, 28, 4);
+    ctx.stroke();
+    ctx.fillStyle = '#f1f5f9';
+    ctx.beginPath();
+    ctx.moveTo(56, 228); ctx.lineTo(70, 245); ctx.lineTo(56, 248);
+    ctx.closePath();
+    ctx.fill();
+
+    // Enemy ship
+    ctx.fillStyle = '#ef4444';
+    roundRect(ctx, 156, 98, 56, 28, 4);
+    ctx.fill();
+    ctx.strokeStyle = '#991b1b';
+    roundRect(ctx, 156, 98, 56, 28, 4);
+    ctx.stroke();
+    ctx.fillStyle = '#1f2937';
+    ctx.beginPath();
+    ctx.moveTo(184, 78); ctx.lineTo(198, 95); ctx.lineTo(184, 98);
+    ctx.closePath();
+    ctx.fill();
+
+    // Health bars with labels
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(8, 14, 96, 12);
+    ctx.fillStyle = TOKENS.colorCyan400;
+    ctx.fillRect(8, 14, Math.max(0, this.threat.state.healthRatio * 96), 12);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(136, 14, 96, 12);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(136, 14, Math.max(0, this.battleEnemyHealthRatio * 96), 12);
+
+    ctx.fillStyle = TOKENS.colorText;
+    ctx.font = TOKENS.fontSmall;
+    ctx.textAlign = 'center';
+    ctx.fillText('YOU', 56, 12);
+    ctx.fillText('ENEMY', 184, 12);
+
+    // Landmarks as targets (scaled up for encounter visibility)
+    for (const landmark of this.landmarks) {
+      const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
+      const isAssist = this.assistLandmarkId === landmark.id;
+      const glow = isTarget ? 0.9 : isAssist ? 1 : 0.2;
+      drawLandmark(ctx, landmark.position.x, landmark.position.y, landmark.id, false, glow, t, 1.4);
+    }
+  }
+
+  private renderRuins(ctx: CanvasRenderingContext2D, t: number): void {
+    // Temple interior
+    const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+    grad.addColorStop(0, '#1e1b4b');
+    grad.addColorStop(1, '#0f0e2e');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    // Stone archway
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(16, 64, 208, 8);
+    ctx.fillRect(16, 64, 8, 160);
+    ctx.fillRect(216, 64, 8, 160);
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(16, 64, 208, 4);
+
+    // Puzzle slots
+    const slots = this.recallState.prompts.length;
+    const slotWidth = 44;
+    const totalW = slots * (slotWidth + 8) - 8;
+    const startX = (GAME_WIDTH - totalW) / 2;
+    for (let index = 0; index < slots; index += 1) {
+      const sx = startX + index * (slotWidth + 8);
+      const solved = index < this.recallState.currentPromptIndex;
+      const active = index === this.recallState.currentPromptIndex;
+
+      ctx.fillStyle = solved ? '#78350f' : '#1e293b';
+      roundRect(ctx, sx, 108, slotWidth, 34, 4);
+      ctx.fill();
+
+      ctx.strokeStyle = active ? TOKENS.colorCyan400 : solved ? TOKENS.colorYellow400 : '#475569';
+      ctx.lineWidth = active ? 2 : 1;
+      roundRect(ctx, sx, 108, slotWidth, 34, 4);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+
+      if (solved) {
+        ctx.fillStyle = TOKENS.colorYellow400;
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('✓', sx + slotWidth / 2, 130);
+      } else if (active) {
+        const pulse = 0.5 + Math.sin(t * 4) * 0.3;
+        ctx.fillStyle = rgba('#22d3ee', pulse);
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('?', sx + slotWidth / 2, 130);
+      }
+    }
+
+    // Landmarks (scaled up for encounter visibility)
+    for (const landmark of this.landmarks) {
+      const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
+      const isAssist = this.assistLandmarkId === landmark.id;
+      const glow = isTarget ? 0.9 : isAssist ? 1 : 0.2;
+      drawLandmark(ctx, landmark.position.x, landmark.position.y, landmark.id, false, glow, t, 1.4);
+    }
+  }
+
+  private renderSquid(ctx: CanvasRenderingContext2D, t: number): void {
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    // Kraken body
+    ctx.fillStyle = '#ec4899';
+    ctx.beginPath();
+    ctx.arc(120, 42, 28, 0, Math.PI * 2);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath(); ctx.arc(110, 38, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(130, 38, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(110, 38, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(130, 38, 2, 0, Math.PI * 2); ctx.fill();
+
+    // Tentacles (animated)
+    ctx.strokeStyle = '#db2777';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 5; i++) {
+      const baseX = 88 + i * 16;
+      ctx.beginPath();
+      ctx.moveTo(baseX, 60);
+      for (let seg = 0; seg < 4; seg++) {
+        const sy = 60 + seg * 20;
+        const sx = baseX + Math.sin(t * 2 + i + seg) * 12;
+        ctx.lineTo(sx, sy);
+      }
       ctx.stroke();
     }
-  }
+    ctx.lineWidth = 1;
 
-  private renderBattle(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(0, 0, 240, 400);
-
-    ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(36, 250, 44, 24);
-    ctx.fillStyle = '#ef4444';
-    ctx.fillRect(164, 104, 48, 24);
-
-    ctx.fillStyle = '#22d3ee';
-    ctx.fillRect(12, 18, this.threat.state.healthRatio * 88, 6);
-    ctx.fillStyle = '#ef4444';
-    ctx.fillRect(140, 18, this.battleEnemyHealthRatio * 88, 6);
-
+    // Landmarks as island fragments (scaled up for encounter visibility)
     for (const landmark of this.landmarks) {
       const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
-      ctx.fillStyle = isTarget ? '#22d3ee' : '#64748b';
-      ctx.fillRect(landmark.position.x - 10, landmark.position.y - 10, 20, 20);
-      if (this.assistLandmarkId === landmark.id) {
-        ctx.strokeStyle = '#4ade80';
-        ctx.strokeRect(landmark.position.x - 14, landmark.position.y - 14, 28, 28);
-      }
+      const isAssist = this.assistLandmarkId === landmark.id;
+      const glow = isTarget ? 1 : isAssist ? 1 : 0.3;
+      drawLandmark(ctx, landmark.position.x, landmark.position.y, landmark.id, false, glow, t, 1.4);
     }
+
+    drawVignette(ctx, GAME_WIDTH, GAME_HEIGHT, 0.5);
   }
 
-  private renderRuins(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = '#1e1b4b';
-    ctx.fillRect(0, 0, 240, 400);
-
-    ctx.fillStyle = '#334155';
-    ctx.fillRect(24, 80, 192, 128);
-
-    const slots = this.recallState.prompts.length;
-    const slotWidth = 40;
-    for (let index = 0; index < slots; index += 1) {
-      const x = 48 + index * 52;
-      const solved = index < this.recallState.currentPromptIndex;
-      ctx.strokeStyle = solved ? '#facc15' : '#94a3b8';
-      ctx.strokeRect(x, 120, slotWidth, 30);
-      if (solved) {
-        ctx.fillStyle = '#facc15';
-        ctx.fillRect(x + 6, 126, slotWidth - 12, 18);
-      }
-    }
-
-    for (const landmark of this.landmarks) {
-      const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
-      ctx.fillStyle = isTarget ? '#22d3ee' : '#64748b';
-      ctx.fillRect(landmark.position.x - 10, landmark.position.y - 10, 20, 20);
-      if (this.assistLandmarkId === landmark.id) {
-        ctx.strokeStyle = '#4ade80';
-        ctx.strokeRect(landmark.position.x - 14, landmark.position.y - 14, 28, 28);
-      }
-    }
-  }
-
-  private renderSquid(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = '#020617';
-    ctx.fillRect(0, 0, 240, 400);
-
-    ctx.fillStyle = '#ec4899';
-    ctx.fillRect(96, 32, 48, 24);
-
-    for (const landmark of this.landmarks) {
-      const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
-      ctx.fillStyle = isTarget ? '#f472b6' : '#7c3aed';
-      ctx.fillRect(landmark.position.x - 12, landmark.position.y - 28, 24, 56);
-
-      if (this.assistLandmarkId === landmark.id) {
-        ctx.strokeStyle = '#4ade80';
-        ctx.strokeRect(landmark.position.x - 16, landmark.position.y - 32, 32, 64);
-      }
-    }
-  }
-
-  private renderPromptHint(ctx: CanvasRenderingContext2D): void {
+  private renderPromptHint(ctx: CanvasRenderingContext2D, t: number): void {
     if (!this.currentPrompt) {
       return;
     }
 
-    ctx.fillStyle = TOKENS.colorText;
-    ctx.font = TOKENS.fontSmall;
-    ctx.textAlign = 'left';
+    // Mode label
     const modeLabel =
       this.data.encounterType === 'storm'
         ? 'STORM FLASH'
@@ -570,26 +691,56 @@ export class EncounterScene implements Scene {
             : this.data.encounterType === 'squid'
               ? 'KRAKEN RECALL'
               : 'FOG RECALL';
-    ctx.fillText(
-      `${modeLabel} ${this.recallState.currentPromptIndex + 1}/${this.recallState.prompts.length}`,
-      8,
-      340,
+
+    ctx.fillStyle = TOKENS.colorText;
+    ctx.font = TOKENS.fontSmall;
+    ctx.textAlign = 'left';
+    ctx.fillText(modeLabel, 8, 338);
+
+    // Progress dots
+    drawProgressDots(ctx, GAME_WIDTH / 2, 352, this.recallState.currentPromptIndex, this.recallState.prompts.length);
+
+    // Find the correct landmark to show its icon in the prompt card
+    const targetLandmark = this.landmarks.find(
+      (lm) => lm.state.conceptId === this.currentPrompt!.conceptId,
     );
+    const targetLandmarkId = targetLandmark?.id ?? '';
 
-    const glyph = this.currentPrompt.conceptId
-      .split('_')
-      .map((part) => part[0])
-      .join('')
-      .slice(0, 3)
-      .toUpperCase();
+    const cardX = 134;
+    const cardY = 326;
+    const cardW = 98;
+    const cardH = 32;
+    ctx.fillStyle = '#1e293b';
+    roundRect(ctx, cardX, cardY, cardW, cardH, 5);
+    ctx.fill();
+    const pulse = 0.7 + Math.sin(t * 4) * 0.2;
+    ctx.strokeStyle = rgba('#22d3ee', pulse);
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, cardX, cardY, cardW, cardH, 5);
+    ctx.stroke();
+    ctx.lineWidth = 1;
 
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(164, 332, 68, 18);
-    ctx.strokeStyle = TOKENS.colorCyan400;
-    ctx.strokeRect(164, 332, 68, 18);
+    // "WHERE?" label
     ctx.fillStyle = TOKENS.colorCyan400;
-    ctx.textAlign = 'center';
-    ctx.fillText(glyph, 198, 345);
+    ctx.font = TOKENS.fontSmall;
+    ctx.textAlign = 'left';
+    ctx.fillText('WHERE?', cardX + 6, cardY + 14);
+
+    // Draw mini landmark icon in the prompt card
+    if (targetLandmarkId) {
+      drawLandmark(ctx, cardX + cardW - 20, cardY + cardH / 2, targetLandmarkId, false, 0.4, t, 0.9);
+    }
+
+    // Instruction on first prompt
+    if (this.recallState.currentPromptIndex === 0 && this.elapsedMs < 4000) {
+      const hintAlpha = Math.min(1, Math.max(0, 1 - (this.elapsedMs - 2000) / 2000));
+      if (hintAlpha > 0) {
+        ctx.fillStyle = rgba('#facc15', hintAlpha * 0.8);
+        ctx.font = TOKENS.fontSmall;
+        ctx.textAlign = 'center';
+        ctx.fillText('Tap the landmark where you placed it!', GAME_WIDTH / 2, 300);
+      }
+    }
   }
 
   private resolveEncounter(): void {

@@ -19,6 +19,14 @@ Live host:
 - `https://stochastic-parrot.ericrhea.com/`
 - `https://stochastic-parrot.ericrhea.com/aboutthegame/`
 
+## 🧠 Project Story & Inspiration
+
+This project was shaped by Spring into AI Week 3 entries and write-ups.
+
+- Story context: `docs/story/spring-into-ai-origins.md`
+- Attribution links: `docs/story/inspiration-links.md`
+- Narrative bridge: `docs/story/from-week3-to-stochastic-parrot.md`
+
 ---
 
 ## 🧭 Quick Start (Local)

@@ -1,17 +1,20 @@
 /**
- * Campaign Select Scene — Unit Tests
+ * Campaign Select Scene — Unit Tests (Carousel Layout)
  *
- * Tests the campaign selection screen that sits between main menu and gameplay:
+ * Tests the campaign selection carousel between main menu and gameplay:
  * - buildCampaignList() pure function
- * - computeCardRects() layout logic
- * - CampaignSelectScene interaction (navigation, activation, back)
+ * - computeDotPositions() layout logic
+ * - CampaignSelectScene interaction (carousel navigation, activation, back)
  * - DLC registration affects available campaigns
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   CampaignSelectScene,
   buildCampaignList,
-  computeCardRects,
+  computeDotPositions,
+  CARD_RECT,
+  ARROW_LEFT_RECT,
+  ARROW_RIGHT_RECT,
 } from '../../../src/scenes/campaign-select-scene';
 import { registerDlcPack, clearDlcRegistry } from '../../../src/dlc/dlc-registry';
 import { ROCKET_SCIENCE_PACK } from '../../../src/dlc/packs/rocket-science-pack';
@@ -58,8 +61,8 @@ function makeCtx(): CanvasRenderingContext2D {
 
 const TAP = (x: number, y: number): InputAction => ({ type: 'primary', x, y });
 const KEYBOARD_ENTER: InputAction = { type: 'primary', x: NaN, y: NaN };
-const MOVE_DOWN: InputAction = { type: 'move', dx: 0, dy: 1 };
-const MOVE_UP: InputAction = { type: 'move', dx: 0, dy: -1 };
+const MOVE_RIGHT: InputAction = { type: 'move', dx: 1, dy: 0 };
+const MOVE_LEFT: InputAction = { type: 'move', dx: -1, dy: 0 };
 const SECONDARY: InputAction = { type: 'secondary', x: 0, y: 0 };
 
 function createScene() {
@@ -131,46 +134,42 @@ describe('buildCampaignList — campaign generation', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// SECTION 2: computeCardRects — layout
+// SECTION 2: computeDotPositions — layout
 // ═══════════════════════════════════════════════════════════════
 
-describe('computeCardRects — layout', () => {
-  it('returns one rect per campaign', () => {
-    const rects = computeCardRects(3);
-    expect(rects.length).toBe(3);
+describe('computeDotPositions — carousel dots', () => {
+  it('returns one x-position per campaign', () => {
+    const dots = computeDotPositions(3);
+    expect(dots.length).toBe(3);
   });
 
-  it('rects are vertically stacked (each y > previous y)', () => {
-    const rects = computeCardRects(3);
-    for (let i = 1; i < rects.length; i++) {
-      expect(rects[i]!.y).toBeGreaterThan(rects[i - 1]!.y);
+  it('dots are horizontally spaced (each x > previous x)', () => {
+    const dots = computeDotPositions(4);
+    for (let i = 1; i < dots.length; i++) {
+      expect(dots[i]!).toBeGreaterThan(dots[i - 1]!);
     }
   });
 
-  it('no rects overlap vertically', () => {
-    const rects = computeCardRects(3);
-    for (let i = 1; i < rects.length; i++) {
-      const prevBottom = rects[i - 1]!.y + rects[i - 1]!.h;
-      expect(rects[i]!.y).toBeGreaterThanOrEqual(prevBottom);
-    }
+  it('dots are centred within game width (240)', () => {
+    const dots = computeDotPositions(3);
+    const first = dots[0]!;
+    const last = dots[dots.length - 1]!;
+    const centre = (first + last) / 2;
+    expect(centre).toBeCloseTo(120, 0);
   });
 
-  it('all rects within game canvas (240×400)', () => {
-    const rects = computeCardRects(3);
-    for (const r of rects) {
-      expect(r.x).toBeGreaterThanOrEqual(0);
-      expect(r.y).toBeGreaterThanOrEqual(0);
-      expect(r.x + r.w).toBeLessThanOrEqual(240);
-      expect(r.y + r.h).toBeLessThanOrEqual(400);
-    }
+  it('card rect is within game canvas (240×400)', () => {
+    expect(CARD_RECT.x).toBeGreaterThanOrEqual(0);
+    expect(CARD_RECT.y).toBeGreaterThanOrEqual(0);
+    expect(CARD_RECT.x + CARD_RECT.w).toBeLessThanOrEqual(240);
+    expect(CARD_RECT.y + CARD_RECT.h).toBeLessThanOrEqual(400);
   });
 
-  it('all rects have consistent width and height', () => {
-    const rects = computeCardRects(3);
-    const widths = new Set(rects.map((r) => r.w));
-    const heights = new Set(rects.map((r) => r.h));
-    expect(widths.size).toBe(1);
-    expect(heights.size).toBe(1);
+  it('arrow regions do not overlap the card', () => {
+    const cardRight = CARD_RECT.x + CARD_RECT.w;
+    const arrowLeftRight = ARROW_LEFT_RECT.x + ARROW_LEFT_RECT.w;
+    expect(arrowLeftRight).toBeLessThanOrEqual(CARD_RECT.x);
+    expect(ARROW_RIGHT_RECT.x).toBeGreaterThanOrEqual(cardRight);
   });
 });
 
@@ -205,7 +204,7 @@ describe('CampaignSelectScene — lifecycle', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// SECTION 4: CampaignSelectScene — interaction
+// SECTION 4: CampaignSelectScene — interaction (carousel)
 // ═══════════════════════════════════════════════════════════════
 
 describe('CampaignSelectScene — interaction', () => {
@@ -227,31 +226,49 @@ describe('CampaignSelectScene — interaction', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('arrow down + Enter selects second campaign (DLC)', () => {
+  it('arrow right + Enter selects second campaign (DLC)', () => {
     registerDlcPack(ROCKET_SCIENCE_PACK);
     const { scene, onCampaignSelect } = createScene();
-    scene.update(0.016, [MOVE_DOWN]);
+    scene.update(0.016, [MOVE_RIGHT]);
     scene.update(0.016, [KEYBOARD_ENTER]);
     expect(onCampaignSelect).toHaveBeenCalledWith('rocket-science');
   });
 
-  it('arrow up from first wraps to last', () => {
+  it('arrow left from first wraps to last', () => {
     registerDlcPack(ROCKET_SCIENCE_PACK);
     const { scene, onCampaignSelect } = createScene();
-    scene.update(0.016, [MOVE_UP]);
+    scene.update(0.016, [MOVE_LEFT]);
     scene.update(0.016, [KEYBOARD_ENTER]);
     expect(onCampaignSelect).toHaveBeenCalledWith('rocket-science');
   });
 
-  it('tapping a campaign card selects that campaign', () => {
+  it('tapping the card rect activates the current campaign', () => {
+    const { scene, onCampaignSelect } = createScene();
+    // Center of CARD_RECT (x=28, y=100, w=184, h=200) → (120, 200)
+    scene.update(0.016, [TAP(120, 200)]);
+    expect(onCampaignSelect).toHaveBeenCalledWith('base');
+  });
+
+  it('tapping right arrow advances carousel', () => {
     registerDlcPack(ROCKET_SCIENCE_PACK);
     const { scene, onCampaignSelect } = createScene();
-    // Second card: x=16, y=94+68+8=170, w=208, h=68 → tap center (120, 204)
-    scene.update(0.016, [TAP(120, 204)]);
+    // ARROW_RIGHT_RECT (x=212, y=160, w=28, h=80) → center (226, 200)
+    scene.update(0.016, [TAP(226, 200)]);
+    scene.update(0.016, [KEYBOARD_ENTER]);
     expect(onCampaignSelect).toHaveBeenCalledWith('rocket-science');
   });
 
-  it('tapping outside cards and buttons does nothing', () => {
+  it('tapping left arrow moves carousel back', () => {
+    registerDlcPack(ROCKET_SCIENCE_PACK);
+    const { scene, onCampaignSelect } = createScene();
+    // ARROW_LEFT_RECT (x=0, y=160, w=28, h=80) → center (14, 200)
+    scene.update(0.016, [TAP(14, 200)]);
+    // Wraps from index 0 to index 1 (last)
+    scene.update(0.016, [KEYBOARD_ENTER]);
+    expect(onCampaignSelect).toHaveBeenCalledWith('rocket-science');
+  });
+
+  it('tapping outside card and arrows does nothing', () => {
     const { scene, onCampaignSelect, onBack } = createScene();
     scene.update(0.016, [TAP(0, 0)]);
     expect(onCampaignSelect).not.toHaveBeenCalled();
@@ -282,10 +299,10 @@ describe('CampaignSelectScene — rendered content', () => {
     expect(texts).toContain('Memory Sea');
   });
 
-  it('renders DLC campaign title when registered', () => {
+  it('renders DLC campaign title when navigated to', () => {
     registerDlcPack(ROCKET_SCIENCE_PACK);
     const { scene } = createScene();
-    scene.update(0.016, []);
+    scene.update(0.016, [MOVE_RIGHT]); // Navigate to DLC card
     const ctx = makeCtx();
     scene.render(ctx);
     const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
@@ -298,6 +315,25 @@ describe('CampaignSelectScene — rendered content', () => {
     const ctx = makeCtx();
     scene.render(ctx);
     const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
-    expect(texts).toContain('5 islands · 15 concepts');
+    expect(texts).toContain('5 islands');
+    expect(texts).toContain('15 concepts');
+  });
+
+  it('renders SET SAIL prompt on card', () => {
+    const { scene } = createScene();
+    scene.update(0.016, []);
+    const ctx = makeCtx();
+    scene.render(ctx);
+    const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
+    expect(texts.some((t: string) => typeof t === 'string' && t.includes('SET SAIL'))).toBe(true);
+  });
+
+  it('renders navigation hint with left/right arrows', () => {
+    const { scene } = createScene();
+    scene.update(0.016, []);
+    const ctx = makeCtx();
+    scene.render(ctx);
+    const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
+    expect(texts.some((t: string) => typeof t === 'string' && t.includes('browse'))).toBe(true);
   });
 });

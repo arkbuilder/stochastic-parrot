@@ -58,7 +58,8 @@ export function validateDlcPack(
   if (c.islands.length === 0) {
     errors.push({ field: 'islands', message: 'DLC must contain at least one island.' });
   }
-  if (c.concepts.length === 0) {
+  // Combat-only DLCs (e.g. Gauntlet) may have zero concepts
+  if (c.concepts.length === 0 && pack.manifest.conceptCount !== 0) {
     errors.push({ field: 'concepts', message: 'DLC must contain at least one concept.' });
   }
 

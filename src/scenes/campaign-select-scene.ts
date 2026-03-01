@@ -1,11 +1,13 @@
 /**
- * Campaign Select Scene
+ * Campaign Select Scene — Horizontal Carousel
  *
  * Intermediate screen between main menu and gameplay.
- * Shows available campaigns (base game + DLC packs) as selectable cards.
- * Tapping a campaign launches the corresponding overworld.
+ * Shows available campaigns (base game + DLC packs) in a horizontal
+ * carousel — one large card at a time with left/right navigation.
+ * Supports 4+ campaigns comfortably.
  *
- * Navigation: tap/click cards, arrow keys ↑↓ + Enter, or BACK to return.
+ * Navigation: ←→ arrows to browse, tap card / Enter to launch,
+ *             tap left/right edges or BACK to return.
  */
 
 import type { Scene, SceneContext } from '../core/types';
@@ -18,7 +20,7 @@ import type { DlcManifest } from '../dlc/types';
 
 // ── Public types ─────────────────────────────────────────────
 
-/** Represents a selectable campaign in the campaign list */
+/** Represents a selectable campaign in the carousel */
 export interface CampaignOption {
   /** 'base' for the main game or the DLC manifest ID */
   id: string;
@@ -37,14 +39,23 @@ export interface CampaignSelectDeps {
 
 // ── Layout constants ─────────────────────────────────────────
 
-interface Rect { x: number; y: number; w: number; h: number }
+export interface Rect { x: number; y: number; w: number; h: number }
 
 const BACK_BUTTON: Rect = { x: 8, y: 8, w: 52, h: 24 };
-const CARD_X = 16;
-const CARD_W = GAME_WIDTH - 32;
-const CARD_H = 68;
-const CARD_GAP = 8;
-const FIRST_CARD_Y = 94;
+
+/** The single visible card in the carousel (centred, large) */
+export const CARD_RECT: Rect = { x: 28, y: 100, w: 184, h: 200 };
+
+/** Touch region for the left arrow */
+export const ARROW_LEFT_RECT: Rect = { x: 0, y: 160, w: 28, h: 80 };
+
+/** Touch region for the right arrow */
+export const ARROW_RIGHT_RECT: Rect = { x: 212, y: 160, w: 28, h: 80 };
+
+/** Dot indicator area (centred row below card) */
+const DOT_Y = 320;
+const DOT_RADIUS = 4;
+const DOT_GAP = 14;
 
 const BASE_CAMPAIGN: CampaignOption = {
   id: 'base',
@@ -84,19 +95,16 @@ export function buildCampaignList(): CampaignOption[] {
 }
 
 /**
- * Compute card rects for the campaign list.
+ * Compute the x-offset for each dot indicator, centred horizontally.
  */
-export function computeCardRects(count: number): Rect[] {
-  const rects: Rect[] = [];
+export function computeDotPositions(count: number): number[] {
+  const totalWidth = (count - 1) * DOT_GAP;
+  const startX = GAME_WIDTH / 2 - totalWidth / 2;
+  const dots: number[] = [];
   for (let i = 0; i < count; i++) {
-    rects.push({
-      x: CARD_X,
-      y: FIRST_CARD_Y + i * (CARD_H + CARD_GAP),
-      w: CARD_W,
-      h: CARD_H,
-    });
+    dots.push(startX + i * DOT_GAP);
   }
-  return rects;
+  return dots;
 }
 
 // ── Scene ────────────────────────────────────────────────────
@@ -105,7 +113,6 @@ export class CampaignSelectScene implements Scene {
   private elapsed = 0;
   private selectedIndex = 0;
   private campaigns: CampaignOption[] = [];
-  private rects: Rect[] = [];
 
   constructor(private readonly deps: CampaignSelectDeps) {}
 
@@ -113,7 +120,6 @@ export class CampaignSelectScene implements Scene {
     this.elapsed = 0;
     this.selectedIndex = 0;
     this.campaigns = buildCampaignList();
-    this.rects = computeCardRects(this.campaigns.length);
   }
 
   exit(): void {}
@@ -128,8 +134,8 @@ export class CampaignSelectScene implements Scene {
       }
 
       if (action.type === 'move') {
-        if (action.dy !== 0 && this.campaigns.length > 0) {
-          this.selectedIndex = mod(this.selectedIndex + Math.sign(action.dy), this.campaigns.length);
+        if (action.dx !== 0 && this.campaigns.length > 0) {
+          this.selectedIndex = mod(this.selectedIndex + Math.sign(action.dx), this.campaigns.length);
         }
         continue;
       }
@@ -143,13 +149,22 @@ export class CampaignSelectScene implements Scene {
           return;
         }
 
-        // Card hit test
-        for (let i = 0; i < this.rects.length; i++) {
-          if (isHit(action, this.rects[i]!)) {
-            this.selectedIndex = i;
-            this.activateSelected();
-            return;
-          }
+        // Left arrow tap
+        if (isHit(action, ARROW_LEFT_RECT) && this.campaigns.length > 1) {
+          this.selectedIndex = mod(this.selectedIndex - 1, this.campaigns.length);
+          continue;
+        }
+
+        // Right arrow tap
+        if (isHit(action, ARROW_RIGHT_RECT) && this.campaigns.length > 1) {
+          this.selectedIndex = mod(this.selectedIndex + 1, this.campaigns.length);
+          continue;
+        }
+
+        // Card tap — select current campaign
+        if (isHit(action, CARD_RECT)) {
+          this.activateSelected();
+          return;
         }
         continue;
       }
@@ -183,19 +198,26 @@ export class CampaignSelectScene implements Scene {
     ctx.font = TOKENS.fontSmall;
     ctx.fillText('Select a campaign to play', GAME_WIDTH / 2, 70);
 
-    // Campaign cards
-    for (let i = 0; i < this.campaigns.length; i++) {
-      const campaign = this.campaigns[i]!;
-      const rect = this.rects[i]!;
-      const selected = i === this.selectedIndex;
-      this.renderCard(ctx, rect, campaign, selected, t);
+    // Current campaign card (single, large)
+    const campaign = this.campaigns[this.selectedIndex];
+    if (campaign) {
+      this.renderCard(ctx, CARD_RECT, campaign, t);
     }
+
+    // Left / right arrows (only when more than 1 campaign)
+    if (this.campaigns.length > 1) {
+      this.renderArrow(ctx, 'left', t);
+      this.renderArrow(ctx, 'right', t);
+    }
+
+    // Dot indicators
+    this.renderDots(ctx);
 
     // Input hint
     ctx.fillStyle = TOKENS.colorTextDark;
     ctx.font = TOKENS.fontSmall;
     ctx.textAlign = 'center';
-    ctx.fillText('Tap card or ↑↓ + Enter', GAME_WIDTH / 2, GAME_HEIGHT - 14);
+    ctx.fillText('\u2190 \u2192 to browse \u00b7 Tap to play', GAME_WIDTH / 2, GAME_HEIGHT - 14);
   }
 
   // ── Private ─────────────────────────────────────────────────
@@ -211,61 +233,100 @@ export class CampaignSelectScene implements Scene {
     ctx: CanvasRenderingContext2D,
     rect: Rect,
     campaign: CampaignOption,
-    selected: boolean,
     t: number,
   ): void {
     // Card background
-    ctx.fillStyle = selected ? 'rgba(30, 45, 70, 0.85)' : 'rgba(15, 23, 42, 0.7)';
-    roundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    roundRect(ctx, rect.x, rect.y, rect.w, rect.h, 8);
     ctx.fill();
 
-    // Selection border
-    if (selected) {
-      const pulse = 0.7 + Math.sin(t * 3) * 0.3;
-      ctx.strokeStyle = rgba(campaign.color, pulse);
-      ctx.lineWidth = 2;
-      roundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
-      ctx.stroke();
-      ctx.lineWidth = 1;
-    } else {
-      ctx.strokeStyle = rgba(campaign.color, 0.3);
-      ctx.lineWidth = 1;
-      roundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
-      ctx.stroke();
-    }
+    // Pulsing accent border
+    const pulse = 0.7 + Math.sin(t * 3) * 0.3;
+    ctx.strokeStyle = rgba(campaign.color, pulse);
+    ctx.lineWidth = 2;
+    roundRect(ctx, rect.x, rect.y, rect.w, rect.h, 8);
+    ctx.stroke();
+    ctx.lineWidth = 1;
 
-    // Accent bar on left
-    ctx.fillStyle = rgba(campaign.color, selected ? 0.9 : 0.5);
-    roundRect(ctx, rect.x, rect.y, 4, rect.h, 2);
+    // Accent bar on top
+    ctx.fillStyle = rgba(campaign.color, 0.9);
+    roundRect(ctx, rect.x, rect.y, rect.w, 4, 2);
+    ctx.fill();
+
+    // Campaign icon area (colour circle)
+    const iconCx = rect.x + rect.w / 2;
+    const iconCy = rect.y + 40;
+    ctx.beginPath();
+    ctx.arc(iconCx, iconCy, 18, 0, Math.PI * 2);
+    ctx.fillStyle = rgba(campaign.color, 0.25);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(iconCx, iconCy, 12, 0, Math.PI * 2);
+    ctx.fillStyle = campaign.color;
     ctx.fill();
 
     // Title
-    ctx.fillStyle = selected ? campaign.color : TOKENS.colorText;
-    ctx.font = TOKENS.fontMedium;
-    ctx.textAlign = 'left';
-    ctx.fillText(campaign.title, rect.x + 14, rect.y + 20);
+    ctx.fillStyle = campaign.color;
+    ctx.font = TOKENS.fontLarge;
+    ctx.textAlign = 'center';
+    ctx.fillText(campaign.title, rect.x + rect.w / 2, rect.y + 80);
 
-    // Subtitle
+    // Subtitle (wrapped at ~28 chars for 184px width)
     ctx.fillStyle = TOKENS.colorTextMuted;
     ctx.font = TOKENS.fontSmall;
-    ctx.fillText(campaign.subtitle, rect.x + 14, rect.y + 35);
+    ctx.fillText(campaign.subtitle, rect.x + rect.w / 2, rect.y + 100);
 
-    // Stats line
-    ctx.fillStyle = selected ? TOKENS.colorCyan400 : TOKENS.colorTextDark;
-    ctx.font = TOKENS.fontSmall;
-    ctx.fillText(
-      `${campaign.islandCount} islands · ${campaign.conceptCount} concepts`,
-      rect.x + 14,
-      rect.y + 52,
-    );
+    // Divider line
+    ctx.strokeStyle = rgba(campaign.color, 0.3);
+    ctx.beginPath();
+    ctx.moveTo(rect.x + 20, rect.y + 115);
+    ctx.lineTo(rect.x + rect.w - 20, rect.y + 115);
+    ctx.stroke();
 
-    // Arrow indicator when selected
-    if (selected) {
-      const arrowPulse = 0.5 + Math.sin(t * 3) * 0.3;
-      ctx.fillStyle = rgba(campaign.color, arrowPulse);
-      ctx.font = TOKENS.fontMedium;
-      ctx.textAlign = 'right';
-      ctx.fillText('▶', rect.x + rect.w - 10, rect.y + rect.h / 2 + 4);
+    // Stats
+    ctx.fillStyle = TOKENS.colorCyan400;
+    ctx.font = TOKENS.fontMedium;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${campaign.islandCount} islands`, rect.x + rect.w / 2, rect.y + 140);
+    ctx.fillText(`${campaign.conceptCount} concepts`, rect.x + rect.w / 2, rect.y + 158);
+
+    // "SET SAIL ▶" prompt at bottom of card
+    const sailPulse = 0.6 + Math.sin(t * 2.5) * 0.4;
+    ctx.fillStyle = rgba(campaign.color, sailPulse);
+    ctx.font = TOKENS.fontMedium;
+    ctx.fillText('SET SAIL \u25B6', rect.x + rect.w / 2, rect.y + 186);
+  }
+
+  private renderArrow(
+    ctx: CanvasRenderingContext2D,
+    direction: 'left' | 'right',
+    t: number,
+  ): void {
+    const campaign = this.campaigns[this.selectedIndex];
+    const color = campaign?.color ?? '#22d3ee';
+    const bob = Math.sin(t * 2) * 2;
+    const x = direction === 'left' ? 14 : GAME_WIDTH - 14;
+    const y = 200 + bob;
+    const arrow = direction === 'left' ? '\u25C0' : '\u25B6';
+
+    ctx.fillStyle = rgba(color, 0.7);
+    ctx.font = TOKENS.fontLarge;
+    ctx.textAlign = 'center';
+    ctx.fillText(arrow, x, y);
+  }
+
+  private renderDots(ctx: CanvasRenderingContext2D): void {
+    const count = this.campaigns.length;
+    if (count <= 1) return;
+
+    const dotXs = computeDotPositions(count);
+    for (let i = 0; i < count; i++) {
+      const active = i === this.selectedIndex;
+      const campaign = this.campaigns[i]!;
+      ctx.beginPath();
+      ctx.arc(dotXs[i]!, DOT_Y, active ? DOT_RADIUS : DOT_RADIUS - 1, 0, Math.PI * 2);
+      ctx.fillStyle = active ? campaign.color : 'rgba(255,255,255,0.25)';
+      ctx.fill();
     }
   }
 }

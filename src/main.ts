@@ -36,19 +36,22 @@ import { GAME_OVER_CINEMATIC } from './cinematics/game-over-cinematics';
 import { BestiaryScene } from './scenes/bestiary-scene';
 import { ConceptMinigameScene } from './scenes/concept-minigame-scene';
 import { getConceptMinigame } from './data/concept-minigames';
-import { registerDlcPack, listDlcPacks } from './dlc/dlc-registry';
+import { registerDlcPack, listDlcPacks, getDlcPack } from './dlc/dlc-registry';
 import { IntroScene } from './scenes/intro-scene';
 import { DlcCreditsScene } from './scenes/dlc-credits-scene';
 import { CampaignSelectScene } from './scenes/campaign-select-scene';
+import { GauntletScene } from './scenes/gauntlet-scene';
 import { AudioEvent } from './audio/types';
 import type { AccessibilitySettings, ConceptMasteryState, MasteryLevel, SessionSave } from './persistence/types';
 import { ROCKET_SCIENCE_PACK } from './dlc/packs/rocket-science-pack';
 import { CYBERSECURITY_PACK } from './dlc/packs/cybersecurity-pack';
+import { ABYSSAL_GAUNTLET_PACK } from './dlc/packs/abyssal-gauntlet-pack';
 import {
   mergeDlcIntoGameData, getAllIslands, getAllConcepts,
   getAllOverworldNodes, findIsland as findIslandInGameData,
   findMinigameByConceptId,
 } from './data/game-data';
+import { OVERWORLD_NODES } from './data/progression';
 
 type DebugController = {
   completeEncoding: () => void;
@@ -101,8 +104,10 @@ const localStore = new LocalStore();
 // ── Register DLC packs at startup ──
 registerDlcPack(ROCKET_SCIENCE_PACK);
 registerDlcPack(CYBERSECURITY_PACK);
+registerDlcPack(ABYSSAL_GAUNTLET_PACK);
 mergeDlcIntoGameData(ROCKET_SCIENCE_PACK);
 mergeDlcIntoGameData(CYBERSECURITY_PACK);
+mergeDlcIntoGameData(ABYSSAL_GAUNTLET_PACK);
 
 const debugController: DebugController = {
   completeEncoding: () => undefined,
@@ -324,7 +329,7 @@ function goToOverworld(
   const overworldScene = new OverworldScene({
     progress: getOverworldProgressSnapshot(),
     fromIslandId,
-    nodes: nodesOverride ?? getAllOverworldNodes() as import('./data/progression').OverworldNodeConfig[],
+    nodes: nodesOverride ?? OVERWORLD_NODES as import('./data/progression').OverworldNodeConfig[],
     theme: resolvedTheme ? MAP_THEMES[resolvedTheme] : undefined,
     telemetry,
     audio: audioManager,
@@ -956,12 +961,17 @@ function goToCampaignSelect(): void {
         // Base game — clear session and launch default overworld
         saveSessionState(null);
         goToOverworld(undefined, undefined, 'base');
-      } else {
-        // DLC campaign — filter overworld to DLC-specific nodes
+      } else if (campaignId === 'abyssal-gauntlet') {
+        // Abyssal Gauntlet — skip overworld, go directly to gauntlet scene
         saveSessionState(null);
-        const dlcNodes = getAllOverworldNodes().filter(
-          (n) => n.islandId.startsWith('dlc_'),
-        );
+        goToGauntlet();
+      } else {
+        // DLC campaign — use pack-specific overworld nodes (not all DLC nodes)
+        saveSessionState(null);
+        const pack = getDlcPack(campaignId);
+        const dlcNodes = pack
+          ? pack.content.overworldNodes
+          : getAllOverworldNodes().filter((n) => n.islandId.startsWith('dlc_'));
         goToOverworld(undefined, dlcNodes.length > 0 ? dlcNodes : undefined, campaignId);
       }
     },
@@ -972,6 +982,26 @@ function goToCampaignSelect(): void {
 
   sceneManager.replace(campaignScene);
   (window as Window & { __dr_scene?: string }).__dr_scene = 'campaign_select';
+}
+
+/**
+ * Launch the Abyssal Gauntlet — endless combat exploration.
+ * Skips the overworld entirely; goes straight to the gauntlet scene.
+ */
+function goToGauntlet(): void {
+  const gauntletScene = new GauntletScene({
+    telemetry,
+    audio: audioManager,
+    onPause: () => {
+      goToMenu();
+    },
+    onGameOver: (_score, _screens) => {
+      goToMenu();
+    },
+  });
+
+  sceneManager.replace(gauntletScene);
+  (window as Window & { __dr_scene?: string }).__dr_scene = 'gauntlet';
 }
 
 function goToBestiary(): void {
@@ -1008,11 +1038,8 @@ function goToBestiary(): void {
   (window as Window & { __dr_scene?: string }).__dr_scene = 'bestiary';
 }
 
-const INTRO_SEEN_KEY = 'dr_intro_seen';
-
 const introScene = new IntroScene(
   () => {
-    try { localStorage.setItem(INTRO_SEEN_KEY, '1'); } catch { /* ignore */ }
     goToMenu();
   },
   (event: AudioEvent) => {
@@ -1030,12 +1057,7 @@ const introScene = new IntroScene(
 
 const bootScene = new BootScene(() => {
   transitionState('menu', 'boot_complete');
-  const seenIntro = (() => { try { return localStorage.getItem(INTRO_SEEN_KEY) === '1'; } catch { return false; } })();
-  if (seenIntro) {
-    goToMenu();
-  } else {
-    sceneManager.replace(introScene);
-  }
+  sceneManager.replace(introScene);
 });
 
 sceneManager.push(bootScene);

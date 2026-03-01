@@ -104,11 +104,43 @@ const THEME_CIPHER: MapTheme = {
   },
 };
 
+const THEME_GAUNTLET: MapTheme = {
+  skyTop: '#0a0000',
+  skyBottom: '#1c0808',
+  ocean: ['#3a0a0a', '#2e0808', '#220606', '#0e0202'],
+  waveTint: 'rgba(200,40,40,',
+  waveStroke: 'rgba(220,60,60,0.12)',
+  chartOverlay: '#1a0606',
+  routeColor: '#f87171',
+  renderExtra(ctx, w, h, t) {
+    // Floating embers / ash particles
+    for (let i = 0; i < 12; i++) {
+      const ex = (i * 22 + Math.sin(t * 0.4 + i * 1.7) * 20 + t * 6) % (w + 10) - 5;
+      const ey = 90 + ((i * 29 + t * 8) % (h - 20));
+      const r = 1 + (i % 3) * 0.5;
+      const alpha = 0.15 + Math.sin(t * 2 + i) * 0.08;
+      ctx.beginPath();
+      ctx.arc(ex, ey, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(248,113,113,${alpha})`;
+      ctx.fill();
+    }
+    // Slow crimson fog drift at bottom
+    const fogY = h - 30 + Math.sin(t * 0.3) * 8;
+    const fogGrad = ctx.createLinearGradient(0, fogY, 0, fogY + 40);
+    fogGrad.addColorStop(0, 'rgba(60,10,10,0)');
+    fogGrad.addColorStop(0.5, 'rgba(100,20,20,0.08)');
+    fogGrad.addColorStop(1, 'rgba(60,10,10,0)');
+    ctx.fillStyle = fogGrad;
+    ctx.fillRect(0, fogY, w, 40);
+  },
+};
+
 /** Lookup theme by campaign ID */
 export const MAP_THEMES: Record<string, MapTheme> = {
   base: THEME_BASE,
   'rocket-science': THEME_ROCKET,
   'cybersecurity': THEME_CIPHER,
+  'abyssal-gauntlet': THEME_GAUNTLET,
 };
 
 interface OverworldSceneDeps {

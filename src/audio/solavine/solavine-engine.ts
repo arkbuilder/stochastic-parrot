@@ -49,12 +49,15 @@ import { buildVoiceFrames, type VoiceOptions } from './voice';
 const SCHEDULE_INTERVAL_MS = 50;
 const LOOKAHEAD_S = 0.15;
 const LAYER_CROSSFADE_S = 0.6;
+const MUSIC_HARSHNESS_MIN_CUTOFF_HZ = 2200;
+const MUSIC_HARSHNESS_MAX_CUTOFF_HZ = 9000;
 
 export class SolavineEngine {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
+  private musicToneFilter: BiquadFilterNode | null = null;
 
   private muted = false;
   private masterVolume = 0.6;
@@ -77,14 +80,21 @@ export class SolavineEngine {
     this.masterGain = this.context.createGain();
     this.musicGain = this.context.createGain();
     this.sfxGain = this.context.createGain();
+    this.musicToneFilter = this.context.createBiquadFilter();
+    this.musicToneFilter.type = 'lowpass';
+    this.musicToneFilter.frequency.value = MUSIC_HARSHNESS_MAX_CUTOFF_HZ;
+    this.musicToneFilter.Q.value = 0.45;
 
     this.masterGain.gain.value = this.muted ? 0 : this.masterVolume;
     this.musicGain.gain.value = this.musicVolume;
     this.sfxGain.gain.value = this.sfxVolume;
 
-    this.musicGain.connect(this.masterGain);
+    this.musicGain.connect(this.musicToneFilter);
+    this.musicToneFilter.connect(this.masterGain);
     this.sfxGain.connect(this.masterGain);
     this.masterGain.connect(this.context.destination);
+
+    this.updateMusicToneFilter();
   }
 
   /** Resume suspended AudioContext (required after user gesture). */
@@ -105,6 +115,7 @@ export class SolavineEngine {
     this.masterGain = null;
     this.musicGain = null;
     this.sfxGain = null;
+    this.musicToneFilter = null;
   }
 
   /* ── Song Playback ── */
@@ -149,8 +160,9 @@ export class SolavineEngine {
       const now = this.context.currentTime;
       const vol = Math.max(this.musicVolume, 0.0001);
       this.musicGain.gain.cancelScheduledValues(now);
-      this.musicGain.gain.setValueAtTime(vol * 0.4, now);
+      this.musicGain.gain.setValueAtTime(vol * 0.55, now);
       this.musicGain.gain.linearRampToValueAtTime(vol, now + LAYER_CROSSFADE_S);
+      this.updateMusicToneFilter(now);
     }
   }
 
@@ -306,28 +318,37 @@ export class SolavineEngine {
       const windowEnd = this.nextLoopStart + loopDur;
 
       const res = this.isLayerActive('resolution');
+      const contour = this.getLoopContourShape(song);
 
       for (const note of getEventsInWindow(melodyNotes, this.scheduledUpTo, horizon)) {
+        const localBeat = secondsToBeats(note.time - this.nextLoopStart, song.bpm);
+        const accent = this.getContourAccent(contour, localBeat, song.melody.lengthBeats);
         if (res || this.isLayerActive('base') || this.isLayerActive('tension')) {
-          this.synthesizeNote(note);
+          this.synthesizeNote(note, accent * this.getInstrumentFatigueTrim(note.instrument, note.freq));
         }
       }
 
       for (const note of getEventsInWindow(harmonyNotes, this.scheduledUpTo, horizon)) {
+        const localBeat = secondsToBeats(note.time - this.nextLoopStart, song.bpm);
+        const accent = this.getContourAccent(contour, localBeat, song.melody.lengthBeats) * 0.92;
         if (res || this.isLayerActive('rhythm') || this.isLayerActive('tension')) {
-          this.synthesizeNote(note);
+          this.synthesizeNote(note, accent);
         }
       }
 
       for (const note of getEventsInWindow(bassNotes, this.scheduledUpTo, horizon)) {
+        const localBeat = secondsToBeats(note.time - this.nextLoopStart, song.bpm);
+        const accent = this.getContourAccent(contour, localBeat, song.melody.lengthBeats) * 1.05;
         if (res || this.isLayerActive('base')) {
-          this.synthesizeNote(note);
+          this.synthesizeNote(note, accent);
         }
       }
 
       for (const hit of getEventsInWindow(drumHits, this.scheduledUpTo, horizon)) {
+        const localBeat = secondsToBeats(hit.time - this.nextLoopStart, song.bpm);
+        const accent = this.getContourAccent(contour, localBeat, song.melody.lengthBeats);
         if (this.isLayerActive('rhythm') || this.isLayerActive('urgency')) {
-          this.synthesizeDrum(hit);
+          this.synthesizeDrum(hit, this.getDrumFatigueTrim(hit.drum) * accent);
         }
       }
 
@@ -352,7 +373,7 @@ export class SolavineEngine {
 
   /* ── Internal: Synthesis ── */
 
-  private synthesizeNote(note: ScheduledNote): void {
+  private synthesizeNote(note: ScheduledNote, dynamicMul = 1): void {
     if (!this.context || !this.musicGain || note.freq <= 0) return;
 
     const preset = getInstrument(note.instrument);
@@ -369,7 +390,10 @@ export class SolavineEngine {
     if (preset.detune) osc.detune.setValueAtTime(preset.detune, when);
 
     // ADSR envelope
-    this.applyADSR(env, preset.envelope, when, dur, note.velocity * preset.volume);
+    const velocity = clampRange(note.velocity, 0, 1);
+    const softenedVelocity = Math.pow(velocity, 1.15);
+    const dynamicVelocity = clampRange(softenedVelocity * dynamicMul, 0.05, 1);
+    this.applyADSR(env, preset.envelope, when, dur, dynamicVelocity * preset.volume);
 
     osc.connect(env);
 
@@ -389,13 +413,14 @@ export class SolavineEngine {
     osc.stop(when + dur + (preset.envelope.release ?? 0.1));
   }
 
-  private synthesizeDrum(hit: ScheduledDrumHit): void {
+  private synthesizeDrum(hit: ScheduledDrumHit, dynamicMul = 1): void {
     if (!this.context || !this.musicGain) return;
 
     const preset = getDrum(hit.drum);
     if (!preset) return;
 
     const when = hit.time;
+    const hitVelocity = clampRange(hit.velocity * dynamicMul, 0.05, 1);
 
     // Tone component (if any)
     if (preset.toneVolume > 0 && preset.pitchStart > 0) {
@@ -406,7 +431,7 @@ export class SolavineEngine {
       osc.frequency.exponentialRampToValueAtTime(
         Math.max(preset.pitchEnd, 1), when + preset.pitchDecay,
       );
-      this.applyADSR(env, preset.envelope, when, preset.pitchDecay, hit.velocity * preset.toneVolume);
+      this.applyADSR(env, preset.envelope, when, preset.pitchDecay, hitVelocity * preset.toneVolume);
       osc.connect(env);
       env.connect(this.musicGain);
       osc.start(when);
@@ -427,9 +452,15 @@ export class SolavineEngine {
       noise.buffer = buffer;
 
       const noiseEnv = this.context.createGain();
-      this.applyADSR(noiseEnv, preset.envelope, when, preset.pitchDecay, hit.velocity * preset.noiseVolume);
+      const shapedNoiseVelocity = hitVelocity * this.getDrumNoiseTrim(hit.drum);
+      this.applyADSR(noiseEnv, preset.envelope, when, preset.pitchDecay, shapedNoiseVelocity * preset.noiseVolume);
 
       noise.connect(noiseEnv);
+
+      const fatigueFilter = this.context.createBiquadFilter();
+      fatigueFilter.type = 'lowpass';
+      fatigueFilter.frequency.setValueAtTime(this.getDrumNoiseCutoff(hit.drum), when);
+      fatigueFilter.Q.setValueAtTime(0.65, when);
 
       if (preset.noiseFilter) {
         const filter = this.context.createBiquadFilter();
@@ -437,10 +468,12 @@ export class SolavineEngine {
         filter.frequency.setValueAtTime(preset.noiseFilter.frequency, when);
         if (preset.noiseFilter.Q) filter.Q.setValueAtTime(preset.noiseFilter.Q, when);
         noiseEnv.connect(filter);
-        filter.connect(this.musicGain);
+        filter.connect(fatigueFilter);
       } else {
-        noiseEnv.connect(this.musicGain);
+        noiseEnv.connect(fatigueFilter);
       }
+
+      fatigueFilter.connect(this.musicGain);
 
       noise.start(when);
       noise.stop(when + dur + 0.02);
@@ -590,6 +623,77 @@ export class SolavineEngine {
     }
   }
 
+  private updateMusicToneFilter(now = this.context?.currentTime): void {
+    if (!this.context || !this.musicToneFilter || now === undefined) return;
+    const layerPressure = this.getLayerPressure();
+    const cutoff = MUSIC_HARSHNESS_MAX_CUTOFF_HZ
+      - (MUSIC_HARSHNESS_MAX_CUTOFF_HZ - MUSIC_HARSHNESS_MIN_CUTOFF_HZ) * layerPressure;
+    this.musicToneFilter.frequency.cancelScheduledValues(now);
+    this.musicToneFilter.frequency.setTargetAtTime(cutoff, now, 0.12);
+  }
+
+  private getLayerPressure(): number {
+    let pressure = 0;
+    if (this.isLayerActive('tension')) pressure += 0.36;
+    if (this.isLayerActive('urgency')) pressure += 0.34;
+    if (this.isLayerActive('rhythm')) pressure += 0.12;
+    if (this.isLayerActive('resolution')) pressure -= 0.18;
+    return clampRange(pressure, 0, 1);
+  }
+
+  private getLoopContourShape(song: SongDefinition): number[] {
+    const loopDurationS = patternDurationSeconds(song.melody.lengthBeats, song.bpm);
+    const elapsedS = Math.max(0, this.context ? this.context.currentTime - this.nextLoopStart : 0);
+    const loopIndex = Math.max(0, Math.floor(elapsedS / Math.max(loopDurationS, 0.001)));
+    const cyclePhase = loopIndex % 4;
+    // Slight 4-loop phrasing cycle so long playbacks breathe instead of flattening out.
+    if (cyclePhase === 0) return [0.9, 0.96, 1.0, 1.06];
+    if (cyclePhase === 1) return [0.88, 0.94, 1.02, 1.08];
+    if (cyclePhase === 2) return [0.92, 0.98, 1.03, 1.1];
+    return [0.86, 0.95, 1.04, 1.14];
+  }
+
+  private getContourAccent(shape: number[], localBeat: number, lengthBeats: number): number {
+    if (!Number.isFinite(localBeat) || shape.length === 0) return 1;
+    const loopLength = Math.max(lengthBeats, 0.001);
+    const beatInLoop = ((localBeat % loopLength) + loopLength) % loopLength;
+    const segmentLength = loopLength / shape.length;
+    const segment = Math.floor(beatInLoop / Math.max(segmentLength, 0.0001));
+    return shape[Math.min(shape.length - 1, Math.max(0, segment))] ?? 1;
+  }
+
+  private getInstrumentFatigueTrim(instrument: string, freq: number): number {
+    if (instrument === 'sawtooth_bright') {
+      if (freq >= 1100) return 0.75;
+      if (freq >= 800) return 0.82;
+      return 0.9;
+    }
+    if (instrument === 'square_full' && freq >= 1000) return 0.88;
+    return 1;
+  }
+
+  private getDrumFatigueTrim(drum: string): number {
+    if (drum === 'hihat_closed') return 0.78;
+    if (drum === 'hihat_open') return 0.72;
+    if (drum === 'snare') return 0.9;
+    return 1;
+  }
+
+  private getDrumNoiseTrim(drum: string): number {
+    if (drum === 'hihat_closed') return 0.72;
+    if (drum === 'hihat_open') return 0.68;
+    if (drum === 'crash') return 0.78;
+    return 1;
+  }
+
+  private getDrumNoiseCutoff(drum: string): number {
+    if (drum === 'hihat_closed') return 8200;
+    if (drum === 'hihat_open') return 7600;
+    if (drum === 'snare') return 6800;
+    if (drum === 'crash') return 7200;
+    return 10000;
+  }
+
   private getOscillatorType(preset: InstrumentPreset): OscillatorType {
     switch (preset.waveShape) {
       case 'pulse': return 'square'; // Approximate pulse with square (duty cycle applied elsewhere)
@@ -606,4 +710,8 @@ function clamp01(v: number): number {
 
 function clampRange(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
+}
+
+function secondsToBeats(seconds: number, bpm: number): number {
+  return (seconds * bpm) / 60;
 }

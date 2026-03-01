@@ -76,7 +76,7 @@ export class ApiClient {
   }
 }
 
-function getDeviceId(): string {
+export function getDeviceId(): string {
   const key = 'dr_device_id';
   const existing = localStorage.getItem(key);
   if (existing) {

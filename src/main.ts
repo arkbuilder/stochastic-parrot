@@ -18,7 +18,7 @@ import { PauseScene, type ConceptJournalEntry } from './scenes/pause-scene';
 import { AudioManager } from './audio/audio-manager';
 import { TelemetryClient } from './telemetry/telemetry-client';
 import { ConsoleSink } from './telemetry/console-sink';
-import { ApiClient } from './persistence/api-client';
+import { ApiClient, getDeviceId } from './persistence/api-client';
 import { LocalStore } from './persistence/local-store';
 import { computeScoreChecksum } from './persistence/checksum';
 import { TELEMETRY_EVENTS } from './telemetry/events';
@@ -70,7 +70,7 @@ function findMinigame(conceptId: string) {
   return findMinigameByConceptId(conceptId);
 }
 
-const PLAYER_ID = 'player_local';
+const PLAYER_ID = getDeviceId();
 const MAIN_ISLAND_IDS = ['island_01', 'island_02', 'island_03', 'island_04', 'island_05'];
 const MASTERY_ORDER: Record<MasteryLevel, number> = {
   discovered: 0,

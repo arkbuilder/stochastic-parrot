@@ -149,11 +149,11 @@ export const ROCKET_SCIENCE_PACK: DlcPack = {
     // OVERWORLD NODES
     // ══════════════════════════════════════════════════════════
     overworldNodes: [
-      { islandId: 'dlc_launchpad_lagoon', name: 'Launchpad Lagoon', x: 60, y: 90 },
-      { islandId: 'dlc_booster_reef', name: 'Booster Reef', x: 100, y: 70 },
-      { islandId: 'dlc_orbit_atoll', name: 'Orbit Atoll', x: 140, y: 50 },
-      { islandId: 'dlc_nebula_shallows', name: 'Nebula Shallows', x: 180, y: 35 },
-      { islandId: 'dlc_krakens_void', name: "Kraken's Void", x: 210, y: 20 },
+      { islandId: 'dlc_launchpad_lagoon', name: 'Launchpad Lagoon', x: 44, y: 270 },
+      { islandId: 'dlc_booster_reef', name: 'Booster Reef', x: 90, y: 226 },
+      { islandId: 'dlc_orbit_atoll', name: 'Orbit Atoll', x: 140, y: 186 },
+      { islandId: 'dlc_nebula_shallows', name: 'Nebula Shallows', x: 180, y: 142 },
+      { islandId: 'dlc_krakens_void', name: "Kraken's Void", x: 206, y: 102 },
     ],
 
     // ══════════════════════════════════════════════════════════

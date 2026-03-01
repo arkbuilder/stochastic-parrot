@@ -172,7 +172,7 @@ describe('computeMenuItems — IA structure', () => {
     expect(ids(items)).toEqual(['play', 'leaderboard']);
   });
 
-  // ── No locked items except expansions ──
+  // ── No locked items ──
 
   it('IA19 — no items are ever locked', () => {
     const items = computeMenuItems(defaultState({
@@ -235,12 +235,12 @@ describe('computeButtonRects — layout', () => {
     }
   });
 
-  it('LY4 — primary items (resume, start) are taller than secondary items', () => {
+  it('LY4 — primary items (resume, play) are taller than secondary items', () => {
     const items = computeMenuItems(defaultState({ hasResumableSession: true, hasBestiary: true }));
     const rects = computeButtonRects(items);
-    const startRect = rects[items.findIndex((i) => i.id === 'start')]!;
+    const playRect = rects[items.findIndex((i) => i.id === 'play')]!;
     const leaderboardRect = rects[items.findIndex((i) => i.id === 'leaderboard')]!;
-    expect(startRect.h).toBeGreaterThan(leaderboardRect.h);
+    expect(playRect.h).toBeGreaterThan(leaderboardRect.h);
   });
 
   it('LY5 — all rects are within game canvas bounds (240×400)', () => {
@@ -370,7 +370,7 @@ describe('MenuScene — interaction', () => {
     // No crash, selection unchanged
     const enterAction: InputAction = { type: 'primary', x: NaN, y: NaN };
     scene.update(0.016, [enterAction]);
-    expect(deps.onStart).toHaveBeenCalled();
+    expect(deps.onPlay).toHaveBeenCalled();
   });
 
   it('IX11 — tap outside any button does nothing', () => {
@@ -386,7 +386,7 @@ describe('MenuScene — interaction', () => {
     const pauseAction: InputAction = { type: 'pause' };
     scene.update(0.016, [pauseAction]);
     // No crashes, no callbacks
-    expect(deps.onStart).not.toHaveBeenCalled();
+    expect(deps.onPlay).not.toHaveBeenCalled();
   });
 });
 

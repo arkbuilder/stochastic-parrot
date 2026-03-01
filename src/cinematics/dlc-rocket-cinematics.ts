@@ -43,7 +43,7 @@ const dlcLaunchpadLagoon: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.8, anim: 'wave' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
           { kind: 'rocket', x: 190, y: 200, scale: 0.7 },
         ],
         caption: 'Captain Nemo spots a rusted rocket. A new journey begins!',
@@ -58,7 +58,7 @@ const dlcLaunchpadLagoon: IslandCinematics = {
           { id: 'bit', x: 120, y: 260, scale: 0.7, anim: 'idle' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+          { kind: 'island_silhouette', x: 120, y: 278, scale: 1.4 },
           { kind: 'fog_wall', x: 120, y: 80, scale: 0.8 },
         ],
         caption: 'Learn the basics of thrust, fuel, and payload to rebuild the ship.',
@@ -78,7 +78,7 @@ const dlcLaunchpadLagoon: IslandCinematics = {
           { id: 'bit', x: 150, y: 250, scale: 0.8, anim: 'celebrate' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
           { kind: 'star_chart', x: 120, y: 170, scale: 1.3 },
         ],
         caption: 'Engines tested! A star chart fragment found in the launchpad wreckage.',
@@ -130,7 +130,7 @@ const dlcBoosterReef: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 160, y: 130, scale: 1.2 },
+          { kind: 'island_silhouette', x: 130, y: 268, scale: 1.5 },
           { kind: 'rocket', x: 50, y: 170, scale: 0.6 },
         ],
         caption: 'Staging, drag, escape velocity — master these to break free!',
@@ -144,7 +144,7 @@ const dlcBoosterReef: IslandCinematics = {
           { id: 'nemo', x: 120, y: 290, scale: 1.2, anim: 'walk' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
+          { kind: 'island_silhouette', x: 120, y: 278, scale: 1.4 },
           { kind: 'lightning', x: 80, y: 30, scale: 1.2 },
         ],
         caption: 'The reef shakes with each lightning strike. Stay focused, captain!',
@@ -165,7 +165,7 @@ const dlcBoosterReef: IslandCinematics = {
           { id: 'bit', x: 145, y: 250, scale: 0.8, anim: 'wave' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
           { kind: 'star_chart', x: 120, y: 170, scale: 1.2 },
         ],
         caption: 'Boosters attached! Another star chart fragment recovered.',

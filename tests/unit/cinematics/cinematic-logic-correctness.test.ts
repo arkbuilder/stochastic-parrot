@@ -2,21 +2,26 @@
  * Cinematic Logic Correctness Tests
  *
  * Validates that every cinematic beat is logically coherent:
- *   R1 — Human characters below the horizon must have visual grounding
- *   R2 — Ships should sit near the waterline
- *   R3 — All characters & props within canvas bounds (240×400)
- *   R4 — No duplicate character IDs in a single beat
- *   R5 — Every beat has a positive duration
- *   R6 — Beat IDs are globally unique
- *   R7 — Characters on a ship must be at or above the ship's y position
- *   R8 — Kraken/space_kraken need no grounding (sea creatures)
- *   R9 — Bit alone (parrot can fly) needs no grounding
+ *   R2  — Ships should sit near the waterline
+ *   R3  — All characters & props within canvas bounds (240×400)
+ *   R4  — No duplicate character IDs in a single beat
+ *   R5  — Every beat has a positive duration
+ *   R6  — Beat IDs are globally unique
+ *   R7  — Characters on a ship must be at or above the ship's y position
+ *   R10 — Spatial grounding proximity (characters near ground, not on water)
  */
 
 import { describe, it, expect } from 'vitest';
 import { ISLAND_CINEMATICS } from '../../../src/cinematics/island-cinematics';
 import { GAME_OVER_CINEMATIC } from '../../../src/cinematics/game-over-cinematics';
 import type { CinematicBeat, CharacterId } from '../../../src/cinematics/types';
+import {
+  checkBeatGrounding,
+  getGroundSurfaces,
+  checkGrounding,
+  HUMANOID_IDS,
+  MAX_GROUND_GAP,
+} from '../../../src/cinematics/cinematic-prover';
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -100,21 +105,19 @@ describe('Cinematic logic correctness', () => {
     expect(ALL_BEATS.length).toBeGreaterThanOrEqual(60);
   });
 
-  // ── R1: Human characters below horizon need grounding ────
-  describe('R1 — human characters below horizon have visual grounding', () => {
+  // ── R10: Spatial grounding proximity (replaces R1) ────────
+  // R1 only checked for PRESENCE of a grounding prop.
+  // R10 verifies the character is NEAR the ground surface (within MAX_GROUND_GAP px).
+  describe('R10 — grounding proximity (no standing on water)', () => {
     for (const { label, beat } of ALL_BEATS) {
-      const humans = humanCharsBelowHorizon(beat);
-      if (humans.length === 0) continue; // no humans below horizon → skip
-      if (INTENTIONAL_WATER_BEATS.has(beat.id)) continue; // allowed exception
+      const humans = (beat.characters ?? [])
+        .filter((c) => (HUMANOID_IDS as readonly string[]).includes(c.id) && c.y > HORIZON_Y);
+      if (humans.length === 0) continue;
+      if (INTENTIONAL_WATER_BEATS.has(beat.id)) continue;
 
-      it(`${label}: ${humans.join(', ')} grounded`, () => {
-        const grounded = beatHasGroundingProp(beat) || beatHasGroundingCharacter(beat);
-        expect(
-          grounded,
-          `Beat "${beat.id}" has ${humans.join(', ')} at y > ${HORIZON_Y} ` +
-          `with no grounding prop (${GROUNDING_PROPS.join('/')}) ` +
-          `or grounding character (${GROUNDING_CHARS.join('/')}).`,
-        ).toBe(true);
+      it(`${label}: ${humans.map((c) => c.id).join(', ')} within ${MAX_GROUND_GAP}px of ground`, () => {
+        const violations = checkBeatGrounding(beat, INTENTIONAL_WATER_BEATS);
+        expect(violations, violations.map((v) => v.message).join('\n')).toHaveLength(0);
       });
     }
   });
@@ -215,5 +218,95 @@ describe('Cinematic logic correctness', () => {
         }
       }
     }
+  });
+
+  // ── Prover self-tests ─────────────────────────────────────
+  describe('Prover — getGroundSurfaces & checkGrounding', () => {
+    it('island at (120,268,1.5) grounds nemo at (120,280)', () => {
+      const beat: CinematicBeat = {
+        id: 'test_grounded', durationS: 3, sky: 'dawn',
+        characters: [{ id: 'nemo', x: 120, y: 280 }],
+        props: [{ kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 }],
+      };
+      const surfaces = getGroundSurfaces(beat);
+      expect(surfaces).toHaveLength(1);
+      const { grounded, gap } = checkGrounding(beat.characters![0]!, surfaces);
+      expect(grounded).toBe(true);
+      expect(gap).toBeLessThanOrEqual(MAX_GROUND_GAP);
+    });
+
+    it('island at (120,120,1.4) does NOT ground nemo at (120,280)', () => {
+      const beat: CinematicBeat = {
+        id: 'test_water', durationS: 3, sky: 'dawn',
+        characters: [{ id: 'nemo', x: 120, y: 280 }],
+        props: [{ kind: 'island_silhouette', x: 120, y: 120, scale: 1.4 }],
+      };
+      const surfaces = getGroundSurfaces(beat);
+      const { grounded, gap } = checkGrounding(beat.characters![0]!, surfaces);
+      expect(grounded).toBe(false);
+      expect(gap).toBeGreaterThan(MAX_GROUND_GAP);
+    });
+
+    it('ship deck grounds nemo standing on it', () => {
+      const beat: CinematicBeat = {
+        id: 'test_ship', durationS: 3, sky: 'dawn',
+        characters: [
+          { id: 'ship_loci', x: 60, y: 210, scale: 0.6 },
+          { id: 'nemo', x: 60, y: 205, scale: 1 },
+        ],
+      };
+      const surfaces = getGroundSurfaces(beat);
+      expect(surfaces.length).toBeGreaterThanOrEqual(1);
+      const { grounded } = checkGrounding(beat.characters![1]!, surfaces);
+      expect(grounded).toBe(true);
+    });
+
+    it('character outside horizontal range is not grounded', () => {
+      const beat: CinematicBeat = {
+        id: 'test_horiz', durationS: 3, sky: 'dawn',
+        characters: [{ id: 'nemo', x: 10, y: 280 }],
+        props: [{ kind: 'island_silhouette', x: 200, y: 268, scale: 1 }],
+      };
+      const surfaces = getGroundSurfaces(beat);
+      const { grounded } = checkGrounding(beat.characters![0]!, surfaces);
+      expect(grounded).toBe(false);
+    });
+
+    it('checkBeatGrounding skips beats in allowedWaterBeats', () => {
+      const beat: CinematicBeat = {
+        id: 'on_water_ok', durationS: 3, sky: 'dark_sea',
+        characters: [{ id: 'nemo', x: 120, y: 290 }],
+      };
+      const violations = checkBeatGrounding(beat, new Set(['on_water_ok']));
+      expect(violations).toHaveLength(0);
+    });
+
+    it('checkBeatGrounding flags ungrounded humanoids', () => {
+      const beat: CinematicBeat = {
+        id: 'not_allowed', durationS: 3, sky: 'dawn',
+        characters: [{ id: 'nemo', x: 120, y: 280 }],
+      };
+      const violations = checkBeatGrounding(beat);
+      expect(violations.length).toBeGreaterThan(0);
+      expect(violations[0]!.rule).toBe('R10-grounding');
+    });
+
+    it('checkBeatGrounding skips non-humanoid characters', () => {
+      const beat: CinematicBeat = {
+        id: 'bit_flies', durationS: 3, sky: 'dawn',
+        characters: [{ id: 'bit', x: 120, y: 280 }],
+      };
+      const violations = checkBeatGrounding(beat);
+      expect(violations).toHaveLength(0);
+    });
+
+    it('checkBeatGrounding skips humanoids above horizon', () => {
+      const beat: CinematicBeat = {
+        id: 'above_sky', durationS: 3, sky: 'dawn',
+        characters: [{ id: 'nemo', x: 120, y: 100 }],
+      };
+      const violations = checkBeatGrounding(beat);
+      expect(violations).toHaveLength(0);
+    });
   });
 });

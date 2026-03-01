@@ -77,7 +77,7 @@ export const GAME_OVER_CINEMATIC: CinematicSequence = {
         { id: 'bit', x: 148, y: 252, scale: 0.7, anim: 'idle' },
       ],
       props: [
-        { kind: 'island_silhouette', x: 170, y: 130, scale: 1 },
+        { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
       ],
       caption: 'A captain who charts knowledge into the world itself.',
       waitForTap: true,
@@ -93,7 +93,7 @@ export const GAME_OVER_CINEMATIC: CinematicSequence = {
         { id: 'nemo', x: 80, y: 290, scale: 1, anim: 'walk' },
       ],
       props: [
-        { kind: 'island_silhouette', x: 120, y: 140, scale: 1.2 },
+        { kind: 'island_silhouette', x: 120, y: 278, scale: 1.4 },
         { kind: 'chart_fragment', x: 190, y: 300, scale: 0.8 },
       ],
       caption: 'The Bay of Learning — where the first memories took root.',
@@ -148,7 +148,7 @@ export const GAME_OVER_CINEMATIC: CinematicSequence = {
         { id: 'null', x: 170, y: 275, scale: 1.1, anim: 'fist_shake', flipX: true },
       ],
       props: [
-        { kind: 'island_silhouette', x: 120, y: 130, scale: 1.3 },
+        { kind: 'island_silhouette', x: 115, y: 263, scale: 2 },
       ],
       tint: 'rgba(120,50,30,0.12)',
       caption: 'Brute force against method. Only one approach survives the sea.',
@@ -186,7 +186,7 @@ export const GAME_OVER_CINEMATIC: CinematicSequence = {
         { id: 'bit', x: 148, y: 245, scale: 0.9, anim: 'wave' },
       ],
       props: [
-        { kind: 'island_silhouette', x: 170, y: 130, scale: 1 },
+        { kind: 'island_silhouette', x: 130, y: 263, scale: 1.5 },
       ],
       caption: 'Through every storm, every battle — Bit never left.',
       waitForTap: true,
@@ -203,7 +203,7 @@ export const GAME_OVER_CINEMATIC: CinematicSequence = {
         { id: 'bit', x: 128, y: 248, scale: 0.6, anim: 'celebrate' },
       ],
       props: [
-        { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+        { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
         { kind: 'chart_fragment', x: 200, y: 290, scale: 0.7 },
       ],
       caption: 'Island after island fell. Knowledge anchored, threats repelled.',
@@ -238,7 +238,7 @@ export const GAME_OVER_CINEMATIC: CinematicSequence = {
         { id: 'bit', x: 145, y: 245, scale: 0.7, anim: 'celebrate' },
       ],
       props: [
-        { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
+        { kind: 'island_silhouette', x: 120, y: 263, scale: 1.5 },
         { kind: 'golden_chart', x: 120, y: 160, scale: 1.1 },
       ],
       tint: 'rgba(255,200,60,0.08)',
@@ -320,7 +320,7 @@ export const GAME_OVER_CINEMATIC: CinematicSequence = {
         { id: 'bit', x: 150, y: 240, scale: 0.8, anim: 'wave' },
       ],
       props: [
-        { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+        { kind: 'island_silhouette', x: 120, y: 258, scale: 1.5 },
         { kind: 'chart_fragment', x: 50, y: 310, scale: 0.6 },
         { kind: 'chart_fragment', x: 190, y: 320, scale: 0.5 },
       ],
@@ -336,7 +336,7 @@ export const GAME_OVER_CINEMATIC: CinematicSequence = {
       sky: 'storm',
       characters: [
         { id: 'ship_loci', x: 60, y: 210, scale: 0.6, anim: 'idle' },
-        { id: 'nemo', x: 60, y: 280, scale: 1.1, anim: 'fist_shake' },
+        { id: 'nemo', x: 60, y: 205, scale: 1.1, anim: 'fist_shake' },
         { id: 'kraken', x: 160, y: 120, scale: 1.3, anim: 'idle' },
       ],
       props: [
@@ -360,7 +360,7 @@ export const GAME_OVER_CINEMATIC: CinematicSequence = {
         { id: 'bit', x: 150, y: 238, scale: 0.9, anim: 'celebrate' },
       ],
       props: [
-        { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
+        { kind: 'island_silhouette', x: 120, y: 258, scale: 1.5 },
         { kind: 'sunrise', x: 120, y: 55, scale: 1.4 },
       ],
       tint: 'rgba(255,200,100,0.06)',

@@ -41,7 +41,7 @@ const island01: IslandCinematics = {
           { id: 'bit', x: 155, y: 250, scale: 0.8, anim: 'idle' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 120, scale: 1.4 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
         ],
         caption: 'Captain Nemo arrives at the Bay of Learning, chart nearly blank.',
         waitForTap: true,
@@ -55,7 +55,7 @@ const island01: IslandCinematics = {
           { id: 'bit', x: 115, y: 260, scale: 0.7, anim: 'wave' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
+          { kind: 'island_silhouette', x: 120, y: 278, scale: 1.4 },
           { kind: 'fog_wall', x: 120, y: 80, scale: 1 },
         ],
         caption: 'Place knowledge in landmarks... or the fog will take it.',
@@ -75,7 +75,7 @@ const island01: IslandCinematics = {
           { id: 'bit', x: 160, y: 250, scale: 0.8, anim: 'wave' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
           { kind: 'chart_fragment', x: 120, y: 180, scale: 1.2 },
         ],
         caption: 'A chart fragment recovered! The first region takes shape.',
@@ -137,7 +137,7 @@ const island02: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 120, scale: 1.2 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
           { kind: 'fog_wall', x: 120, y: 60, scale: 0.8 },
         ],
         caption: 'The storm scatters memory. Knowledge is harder to hold here.',
@@ -151,7 +151,7 @@ const island02: IslandCinematics = {
           { id: 'nemo', x: 120, y: 290, scale: 1.2, anim: 'walk' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
+          { kind: 'island_silhouette', x: 120, y: 278, scale: 1.4 },
           { kind: 'lightning', x: 80, y: 30, scale: 1.2 },
         ],
         caption: 'Anchor your knowledge to the landmarks — or lose it to the wind.',
@@ -172,7 +172,7 @@ const island02: IslandCinematics = {
           { id: 'bit', x: 150, y: 245, scale: 0.8, anim: 'celebrate' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
           { kind: 'chart_fragment', x: 120, y: 170, scale: 1.2 },
         ],
         caption: 'The storm breaks! Another chart fragment secured.',
@@ -233,7 +233,7 @@ const island03: IslandCinematics = {
           { id: 'null', x: 190, y: 260, scale: 0.9, flipX: true, anim: 'fist_shake' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.3 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
         ],
         caption: "Null's crew already scattered the maze. Time to set things straight.",
         waitForTap: true,
@@ -251,7 +251,7 @@ const island03: IslandCinematics = {
           { id: 'nemo', x: 100, y: 280, scale: 1.2, anim: 'celebrate' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
           { kind: 'cannon_flash', x: 120, y: 200, scale: 1 },
         ],
         caption: 'Victory! A cannon upgrade earned from the battle.',
@@ -312,7 +312,7 @@ const island04: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 120, scale: 1.3 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
         ],
         caption: 'The ruins hold secrets... knowledge must be recalled in sequence.',
         waitForTap: true,
@@ -341,7 +341,7 @@ const island04: IslandCinematics = {
           { id: 'nemo', x: 120, y: 280, scale: 1.2, anim: 'idle' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
           { kind: 'chart_fragment', x: 120, y: 170, scale: 1.3 },
         ],
         caption: 'A journal fragment from the original cartographers...',
@@ -369,7 +369,7 @@ const island04: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
         ],
         caption: 'Only one who masters all knowledge can pass the Kraken.',
         waitForTap: true,
@@ -416,7 +416,7 @@ const island05: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
           { kind: 'tentacle', x: 40, y: 150, scale: 1 },
         ],
         tint: 'rgba(10,5,30,0.2)',
@@ -460,7 +460,7 @@ const island05: IslandCinematics = {
           { id: 'bit', x: 150, y: 240, scale: 0.9, anim: 'celebrate' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
+          { kind: 'island_silhouette', x: 120, y: 258, scale: 1.5 },
           { kind: 'golden_chart', x: 120, y: 160, scale: 1.3 },
         ],
         caption: 'The Golden Chart is complete! Every island mapped.',
@@ -524,7 +524,7 @@ const hiddenReef: IslandCinematics = {
           { id: 'bit', x: 150, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
         ],
         caption: 'Old concepts resurface here. True mastery means remembering everything.',
         waitForTap: true,
@@ -543,7 +543,7 @@ const hiddenReef: IslandCinematics = {
           { id: 'bit', x: 160, y: 248, scale: 0.8, anim: 'celebrate' },
         ],
         props: [
-          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
+          { kind: 'island_silhouette', x: 120, y: 268, scale: 1.5 },
         ],
         caption: 'The Hidden Reef conquered! A true master of the Memory Sea.',
         waitForTap: true,

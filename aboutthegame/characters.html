@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Characters — Dead Reckoning: Memory Sea</title>
+  <meta name="description" content="Meet Captain Nemo, Bit the parrot, rival Captain Null, and the Kraken — the cast of Dead Reckoning: Memory Sea." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="site-nav">
+    <a href="index.html" class="nav-logo">⚓ Dead Reckoning</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="gameplay.html">Gameplay</a>
+      <a href="characters.html" class="active">Characters</a>
+      <a href="encounters.html">Encounters</a>
+      <a href="islands.html">Islands</a>
+      <a href="dlc.html">DLC</a>
+      <a href="../src/index.html" class="nav-play-btn">▶ Play Now</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>The Crew &amp; Foes</h1>
+    <p class="subtitle">Every voyage needs a captain, a companion, and a worthy adversary</p>
+  </header>
+
+  <!-- ═══ Captain Nemo ═══ -->
+  <section class="section">
+    <div class="character-profile" style="border-left: 4px solid var(--cyan);">
+      <div class="character-avatar" style="border-color: var(--cyan);">🏴‍☠️</div>
+      <div class="character-info">
+        <h3 style="color: var(--cyan);">Captain Mnemona "Nemo" Vex</h3>
+        <p class="role" style="color: var(--cyan);">Player Character · Captain of the Loci</p>
+        <p>A pirate-cartographer who charts knowledge into the world itself. Curious, methodical, and quietly competitive. While others memorize by brute force, Nemo uses the Method of Loci — placing concepts in vivid spatial landmarks and recalling them under pressure.</p>
+        <p style="margin-top: var(--space-sm);">Her motivation: chart the entire Memory Sea and prove once and for all that <strong>structured knowledge beats brute force</strong>.</p>
+
+        <h4 style="font-family: var(--font-display); font-size: 0.5rem; color: var(--cyan); margin-top: var(--space-md);">Visual Design</h4>
+        <ul style="list-style: none; padding: 0; color: var(--text-muted);">
+          <li>▸ 16×16 sprite with tricorn hat + sextant on belt</li>
+          <li>▸ Dark coat with cyan trim and yellow buttons</li>
+          <li>▸ Identifiable silhouette at any zoom level</li>
+          <li>▸ Animations: idle breathing, walk cycle, place concept, recall flash, fail frustration</li>
+        </ul>
+
+        <h4 style="font-family: var(--font-display); font-size: 0.5rem; color: var(--cyan); margin-top: var(--space-md);">Faction</h4>
+        <p>Captain Nemo's faction color is <span style="color: var(--cyan); font-weight: bold;">■ Cyan</span> — the color of structured knowledge, the sea at dawn, and the glow of correct recall.</p>
+      </div>
+    </div>
+
+    <!-- ═══ Bit the Parrot ═══ -->
+    <div class="character-profile" style="border-left: 4px solid var(--green);">
+      <div class="character-avatar" style="border-color: var(--green);">🦜</div>
+      <div class="character-info">
+        <h3 style="color: var(--green);">Bit</h3>
+        <p class="role" style="color: var(--green);">Navigator Parrot · Novice Assist Companion</p>
+        <p>Chatty (in icon-based squawks), loyal, and slightly sarcastic through body language alone. Bit sits on Nemo's shoulder during exploration and becomes an active gameplay element during encounters.</p>
+
+        <h4 style="font-family: var(--font-display); font-size: 0.5rem; color: var(--green); margin-top: var(--space-md);">Gameplay Role</h4>
+        <ul style="list-style: none; padding: 0; color: var(--text-muted);">
+          <li>▸ <strong>Novice Assist:</strong> After 2 failures on a recall prompt, Bit flies toward the correct landmark — a diegetic hint</li>
+          <li>▸ <strong>Expert Breadcrumbs:</strong> Chirps near hidden expert entrances if you linger nearby</li>
+          <li>▸ <strong>Never explicit:</strong> Bit gives spatial hints through movement, never text instruction</li>
+        </ul>
+
+        <h4 style="font-family: var(--font-display); font-size: 0.5rem; color: var(--green); margin-top: var(--space-md);">Visual Design</h4>
+        <ul style="list-style: none; padding: 0; color: var(--text-muted);">
+          <li>▸ 8×8 sitting, 12×12 flying</li>
+          <li>▸ Bright green body with yellow beak</li>
+          <li>▸ Animations: sit-idle, fly-to-landmark, excited-bounce</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══ Captain Null ═══ -->
+    <div class="character-profile" style="border-left: 4px solid var(--red);">
+      <div class="character-avatar" style="border-color: var(--red);">🏴</div>
+      <div class="character-info">
+        <h3 style="color: var(--red);">Captain Redmond Null</h3>
+        <p class="role" style="color: var(--red);">Antagonist · Captain of the Overfit</p>
+        <p>Aggressive, impatient, and overconfident. Captain Null memorizes by brute-force repetition — cramming without understanding. He represents <strong>the wrong way to learn</strong>: rote memorization that crumbles under pressure.</p>
+        <p style="margin-top: var(--space-sm);">His ship, the <em>Overfit</em>, is visually aggressive — red sails, bristling cannons. He challenges Nemo at Island 3 and becomes a recurring presence throughout the mid-game.</p>
+
+        <h4 style="font-family: var(--font-display); font-size: 0.5rem; color: var(--red); margin-top: var(--space-md);">Visual Design</h4>
+        <ul style="list-style: none; padding: 0; color: var(--text-muted);">
+          <li>▸ 16×16 sprite — broad shoulders, bald head, eye patch</li>
+          <li>▸ Red coat, black trim, orange belt</li>
+          <li>▸ Opposite silhouette to Nemo — immediately distinguishable</li>
+          <li>▸ Animations: idle arms-crossed, fire cannon, defeat fist-shake</li>
+        </ul>
+
+        <h4 style="font-family: var(--font-display); font-size: 0.5rem; color: var(--red); margin-top: var(--space-md);">Encounter Role</h4>
+        <p style="color: var(--text-muted);">Appears first at Island 3 (Coral Maze) for the Rival Pirate Battle encounter. His cannon-duel is a back-and-forth volley where correct recall fires your cannon and wrong answers mean taking a hit. By Island 5, his ship lies wrecked on the rocks — brute force failed him.</p>
+      </div>
+    </div>
+
+    <!-- ═══ The Kraken ═══ -->
+    <div class="character-profile" style="border-left: 4px solid var(--pink);">
+      <div class="character-avatar" style="border-color: var(--pink);">🦑</div>
+      <div class="character-info">
+        <h3 style="color: var(--pink);">The Kraken of Recall</h3>
+        <p class="role" style="color: var(--pink);">Final Boss · Guardian of Kraken's Reach</p>
+        <p>Ancient, unknowable, vast. The Kraken is not evil — it <strong>tests worthiness</strong>. Only those who have truly mastered all the knowledge of the Memory Sea can pass its gauntlet.</p>
+
+        <h4 style="font-family: var(--font-display); font-size: 0.5rem; color: var(--pink); margin-top: var(--space-md);">Boss Mechanics</h4>
+        <ul style="list-style: none; padding: 0; color: var(--text-muted);">
+          <li>▸ Tentacles wrap the ship — each represents a concept from a previous island</li>
+          <li>▸ Repel each tentacle by recalling the correct concept + landmark</li>
+          <li>▸ 5–8 tentacles test cross-island cumulative memory</li>
+          <li>▸ Never fully visible — only tentacles and one enormous, tracking eye</li>
+          <li>▸ After 3 failures, the Kraken retreats briefly — pressure relief</li>
+          <li>▸ All tentacles first-try? Earn the <strong>"Dead Reckoner"</strong> title</li>
+        </ul>
+
+        <h4 style="font-family: var(--font-display); font-size: 0.5rem; color: var(--pink); margin-top: var(--space-md);">Visual Design</h4>
+        <ul style="list-style: none; padding: 0; color: var(--text-muted);">
+          <li>▸ Tentacle sprites: 8×48 per segment, animated sway</li>
+          <li>▸ Deep violet body with pink suckers and cyan bioluminescent spots</li>
+          <li>▸ Eye: 32×32, blinks and tracks player actions</li>
+          <li>▸ Boss health bar uses pink fill against dark background</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══ The Space Kraken ═══ -->
+    <div class="character-profile" style="border-left: 4px solid var(--violet);">
+      <div class="character-avatar" style="border-color: var(--violet);">👾</div>
+      <div class="character-info">
+        <h3 style="color: var(--violet);">The Space Kraken</h3>
+        <p class="role" style="color: var(--violet);">DLC Boss · Guardian of the Void</p>
+        <p>A cosmic variant encountered in the Rocket Science DLC. Lurks in an asteroid field beyond the nebula. Identical boss mechanics to the sea Kraken, but themed with space concepts — heat shields, re-entry angles, and splashdown calculations.</p>
+        <span class="card-tag tag-dlc">Starboard Launch DLC</span>
+      </div>
+    </div>
+
+    <!-- ═══ Ships ═══ -->
+    <h2 class="section-title" style="margin-top: var(--space-2xl);">The Ships</h2>
+    <p class="section-subtitle">Two rival vessels on the Memory Sea</p>
+
+    <div class="card-grid">
+      <div class="card" style="border-color: var(--cyan);">
+        <span class="card-icon">⛵</span>
+        <h3 style="color: var(--cyan);">The Loci</h3>
+        <p>Nemo's small but sturdy caravel. Starts humble, but accumulates visible upgrades as you clear islands — taller mast, glowing cannon, iron hull plating, golden compass, and eventually the legendary Ghostlight Lantern.</p>
+        <p style="margin-top: var(--space-sm); color: var(--text-muted);">Named after "loci" (Latin: places) — the foundation of the memory palace technique.</p>
+      </div>
+      <div class="card" style="border-color: var(--red);">
+        <span class="card-icon">🚢</span>
+        <h3 style="color: var(--red);">The Overfit</h3>
+        <p>Captain Null's aggressive warship. Red sails, bristling cannons, intimidating silhouette. It looks more powerful than the Loci — but by Island 5 it lies wrecked on the rocks. Brute force crumbles when true understanding is required.</p>
+        <p style="margin-top: var(--space-sm); color: var(--text-muted);">Named after "overfitting" — memorizing data without understanding the pattern.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <p>⚓ Dead Reckoning: Memory Sea</p>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="gameplay.html">Gameplay</a>
+      <a href="characters.html">Characters</a>
+      <a href="encounters.html">Encounters</a>
+      <a href="islands.html">Islands</a>
+      <a href="dlc.html">DLC</a>
+    </div>
+  </footer>
+
+</body>
+</html>

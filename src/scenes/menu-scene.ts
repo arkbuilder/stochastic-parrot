@@ -3,60 +3,124 @@ import type { InputAction } from '../input/types';
 import { TOKENS } from '../rendering/tokens';
 import { drawButton, drawOceanGradient, drawSkyGradient, drawStars, drawShip, drawVignette, rgba } from '../rendering/draw';
 
-type Rect = { x: number; y: number; w: number; h: number };
+// ── Public types (exported for testing) ──────────────────────
 
-type MenuItem = 'resume' | 'start' | 'leaderboard' | 'bestiary';
+export type Rect = { x: number; y: number; w: number; h: number };
 
-type MenuButton = {
-  item: MenuItem;
+export type MenuItemId = 'resume' | 'start' | 'expansions' | 'leaderboard' | 'bestiary';
+
+export interface MenuItemConfig {
+  id: MenuItemId;
   label: string;
-  rect: Rect;
-};
+  /** When true, button appears dimmed and activating it shows the hint instead of navigating */
+  locked: boolean;
+  /** Hint text shown when a locked item is activated (e.g. "Complete all 5 islands to unlock") */
+  hint: string;
+}
 
-const RESUME_BUTTON: Rect = {
-  x: 48,
-  y: 238,
-  w: 144,
-  h: 38,
-};
+/**
+ * Snapshot of game state needed to compute menu items.
+ * Pure data — no callbacks, no side effects.
+ */
+export interface MenuState {
+  hasResumableSession: boolean;
+  baseCampaignComplete: boolean;
+  dlcPackCount: number;
+  hasBestiary: boolean;
+}
 
-const START_BUTTON: Rect = {
-  x: 48,
-  y: 280,
-  w: 144,
-  h: 38,
-};
+/**
+ * Dependencies injected into MenuScene — callbacks + state accessor.
+ * Separating state from callbacks makes the pure logic testable.
+ */
+export interface MenuSceneDeps {
+  onStart: () => void;
+  onResume: () => void;
+  onLeaderboard: () => void;
+  onBestiary: () => void;
+  onExpansions: () => void;
+  getMenuState: () => MenuState;
+}
 
-const LEADERBOARD_BUTTON: Rect = {
-  x: 48,
-  y: 322,
-  w: 144,
-  h: 30,
-};
+// ── Layout constants ─────────────────────────────────────────
 
-const BESTIARY_BUTTON: Rect = {
-  x: 48,
-  y: 358,
-  w: 144,
-  h: 30,
-};
+const BUTTON_X = 48;
+const BUTTON_W = 144;
+const PRIMARY_H = 38;
+const SECONDARY_H = 30;
+const GAP = 4;
+const FIRST_BUTTON_Y = 210;
+
+const HINT_DURATION_S = 2.5;
+
+// ── Pure logic (exported for unit testing) ───────────────────
+
+/**
+ * Compute the ordered list of menu items from current game state.
+ * Pure function — no side effects, fully deterministic, easy to test.
+ */
+export function computeMenuItems(state: MenuState): MenuItemConfig[] {
+  const items: MenuItemConfig[] = [];
+
+  if (state.hasResumableSession) {
+    items.push({ id: 'resume', label: 'RESUME', locked: false, hint: '' });
+  }
+
+  items.push({ id: 'start', label: 'NEW VOYAGE', locked: false, hint: '' });
+
+  if (state.dlcPackCount > 0) {
+    const locked = !state.baseCampaignComplete;
+    items.push({
+      id: 'expansions',
+      label: locked ? 'EXPANSIONS' : 'EXPANSIONS',
+      locked,
+      hint: locked
+        ? 'Complete all 5 islands to unlock!'
+        : '',
+    });
+  }
+
+  items.push({ id: 'leaderboard', label: 'LEADERBOARD', locked: false, hint: '' });
+
+  if (state.hasBestiary) {
+    items.push({ id: 'bestiary', label: 'BESTIARY', locked: false, hint: '' });
+  }
+
+  return items;
+}
+
+/**
+ * Compute pixel rects for a list of menu items.
+ * Rects are centered horizontally, stacked vertically from FIRST_BUTTON_Y.
+ * Primary items (resume, start) get taller buttons; secondary items get shorter ones.
+ */
+export function computeButtonRects(items: MenuItemConfig[]): Rect[] {
+  let y = FIRST_BUTTON_Y;
+  return items.map((item) => {
+    const h = item.id === 'resume' || item.id === 'start' ? PRIMARY_H : SECONDARY_H;
+    const rect: Rect = { x: BUTTON_X, y, w: BUTTON_W, h };
+    y += h + GAP;
+    return rect;
+  });
+}
+
+// ── Scene ────────────────────────────────────────────────────
 
 export class MenuScene implements Scene {
   private selectedIndex = 0;
   private elapsed = 0;
+  private hintText = '';
+  private hintTimer = 0;
 
-  constructor(
-    private readonly onStart: () => void,
-    private readonly onLeaderboard: () => void,
-    private readonly onResume?: () => void,
-    private readonly hasResume?: () => boolean,
-    private readonly onBestiary?: () => void,
-  ) {}
+  constructor(private readonly deps: MenuSceneDeps) {}
 
   enter(context: SceneContext): void {
     void context;
     this.elapsed = 0;
-    this.selectedIndex = this.getButtons().findIndex((button) => button.item === 'start');
+    this.hintText = '';
+    this.hintTimer = 0;
+    const items = computeMenuItems(this.deps.getMenuState());
+    this.selectedIndex = items.findIndex((item) => item.id === 'start');
     if (this.selectedIndex < 0) {
       this.selectedIndex = 0;
     }
@@ -67,14 +131,20 @@ export class MenuScene implements Scene {
   update(dt: number, actions: InputAction[]): void {
     this.elapsed += dt;
 
+    if (this.hintTimer > 0) {
+      this.hintTimer = Math.max(0, this.hintTimer - dt);
+    }
+
+    const items = computeMenuItems(this.deps.getMenuState());
+    const rects = computeButtonRects(items);
+
     for (const action of actions) {
       if (action.type === 'move') {
-        const buttons = this.getButtons();
-        if (buttons.length === 0 || action.dy === 0) {
+        if (items.length === 0 || action.dy === 0) {
           continue;
         }
 
-        this.selectedIndex = mod(this.selectedIndex + Math.sign(action.dy), buttons.length);
+        this.selectedIndex = mod(this.selectedIndex + Math.sign(action.dy), items.length);
         continue;
       }
 
@@ -82,41 +152,36 @@ export class MenuScene implements Scene {
         continue;
       }
 
-      const buttons = this.getButtons();
       const selected = Number.isNaN(action.x)
-        ? buttons[this.selectedIndex]
-        : buttons.find((button) => isPointInRect(action.x, action.y, button.rect));
+        ? items[this.selectedIndex]
+        : items.find((_, i) => {
+            const r = rects[i];
+            return r != null && isPointInRect(action.x, action.y, r);
+          });
 
       if (!selected) {
         continue;
       }
 
-      this.selectedIndex = buttons.findIndex((button) => button.item === selected.item);
+      this.selectedIndex = items.findIndex((item) => item.id === selected.id);
 
-      if (selected.item === 'resume' && this.onResume) {
-        this.onResume();
-        return;
+      // Locked items show hint instead of navigating
+      if (selected.locked) {
+        this.hintText = selected.hint;
+        this.hintTimer = HINT_DURATION_S;
+        continue;
       }
 
-      if (selected.item === 'start') {
-        this.onStart();
-        return;
-      }
-
-      if (selected.item === 'leaderboard') {
-        this.onLeaderboard();
-        return;
-      }
-
-      if (selected.item === 'bestiary' && this.onBestiary) {
-        this.onBestiary();
-        return;
-      }
+      this.activateItem(selected.id);
+      return;
     }
   }
 
   render(ctx: CanvasRenderingContext2D): void {
     const t = this.elapsed;
+    const state = this.deps.getMenuState();
+    const items = computeMenuItems(state);
+    const rects = computeButtonRects(items);
 
     // Sky gradient
     drawSkyGradient(ctx, GAME_WIDTH, '#0b1628', '#162844', 160);
@@ -151,37 +216,88 @@ export class MenuScene implements Scene {
     ctx.fillText('A Pirate AI Adventure', GAME_WIDTH / 2, 122);
 
     // Buttons
-    const buttons = this.getButtons();
-    for (let index = 0; index < buttons.length; index += 1) {
-      const button = buttons[index];
-      if (!button) continue;
-      const selected = index === this.selectedIndex;
-      const fontSize = button.item === 'leaderboard' ? 10 : 12;
-      drawButton(ctx, button.rect.x, button.rect.y, button.rect.w, button.rect.h, button.label, selected, fontSize);
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const rect = rects[i];
+      if (!item || !rect) continue;
+      const selected = i === this.selectedIndex;
+      const fontSize = item.id === 'leaderboard' ? 10 : 12;
+
+      if (item.locked) {
+        this.drawLockedButton(ctx, rect, item.label, selected, fontSize, t);
+      } else {
+        drawButton(ctx, rect.x, rect.y, rect.w, rect.h, item.label, selected, fontSize);
+      }
+    }
+
+    // DLC hint toast
+    if (this.hintTimer > 0 && this.hintText) {
+      const alpha = Math.min(1, this.hintTimer / 0.3);
+      ctx.fillStyle = rgba('#a78bfa', alpha * 0.85);
+      ctx.font = TOKENS.fontSmall;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.hintText, GAME_WIDTH / 2, FIRST_BUTTON_Y - 18);
     }
 
     // Input hint
     ctx.fillStyle = TOKENS.colorTextDark;
     ctx.font = TOKENS.fontSmall;
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
     ctx.fillText('Tap / Click / Enter / Arrows', GAME_WIDTH / 2, GAME_HEIGHT - 18);
+  }
+
+  // ── Private helpers ──────────────────────────────────────
+
+  private activateItem(id: MenuItemId): void {
+    switch (id) {
+      case 'resume':
+        this.deps.onResume();
+        break;
+      case 'start':
+        this.deps.onStart();
+        break;
+      case 'expansions':
+        this.deps.onExpansions();
+        break;
+      case 'leaderboard':
+        this.deps.onLeaderboard();
+        break;
+      case 'bestiary':
+        this.deps.onBestiary();
+        break;
+    }
+  }
+
+  private drawLockedButton(
+    ctx: CanvasRenderingContext2D,
+    rect: Rect,
+    label: string,
+    selected: boolean,
+    fontSize: number,
+    t: number,
+  ): void {
+    // Dimmed background
+    ctx.fillStyle = selected ? '#1a1a2e' : '#111118';
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    ctx.strokeStyle = selected ? '#7c3aed' : '#4c1d95';
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    ctx.lineWidth = 1;
+
+    // Lock icon + label
+    const lockPulse = 0.5 + Math.sin(t * 2) * 0.15;
+    ctx.fillStyle = rgba('#a78bfa', selected ? 0.9 : lockPulse);
+    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`\u{1F512} ${label}`, rect.x + rect.w / 2, rect.y + rect.h / 2);
     ctx.textBaseline = 'alphabetic';
   }
-
-  private getButtons(): MenuButton[] {
-    const buttons: MenuButton[] = [];
-    if (this.hasResume?.() && this.onResume) {
-      buttons.push({ item: 'resume', label: 'RESUME', rect: RESUME_BUTTON });
-    }
-
-    buttons.push({ item: 'start', label: 'NEW VOYAGE', rect: START_BUTTON });
-    buttons.push({ item: 'leaderboard', label: 'LEADERBOARD', rect: LEADERBOARD_BUTTON });
-    if (this.onBestiary) {
-      buttons.push({ item: 'bestiary', label: 'BESTIARY', rect: BESTIARY_BUTTON });
-    }
-    return buttons;
-  }
 }
+
+// ── Utility (module-private) ─────────────────────────────────
 
 function isPointInRect(x: number, y: number, rect: Rect): boolean {
   return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;

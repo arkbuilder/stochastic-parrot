@@ -34,7 +34,8 @@ import { GAME_OVER_CINEMATIC } from './cinematics/game-over-cinematics';
 import { BestiaryScene } from './scenes/bestiary-scene';
 import { ConceptMinigameScene } from './scenes/concept-minigame-scene';
 import { getConceptMinigame } from './data/concept-minigames';
-import { listDlcPacks } from './dlc/dlc-registry';
+import { listDlcPacks, getDlcCount } from './dlc/dlc-registry';
+import { isBaseCampaignComplete } from './dlc/dlc-unlock';
 import { IntroScene } from './scenes/intro-scene';
 import { DlcCreditsScene } from './scenes/dlc-credits-scene';
 import { CreditsMusic } from './audio/credits-music';
@@ -888,8 +889,8 @@ function startIsland(islandId: string): void {
   (window as Window & { __dr_scene?: string }).__dr_scene = 'island';
 }
 
-const menuScene = new MenuScene(
-  () => {
+const menuScene = new MenuScene({
+  onStart: () => {
     saveSessionState(null);
     if (stateMachine.current === 'menu') {
       transitionState('play', 'menu_start_pressed');
@@ -897,21 +898,33 @@ const menuScene = new MenuScene(
 
     goToOverworld();
   },
-  () => {
+  onLeaderboard: () => {
     goToLeaderboard();
   },
-  () => {
+  onResume: () => {
     if (stateMachine.current === 'menu') {
       transitionState('play', 'menu_resume_pressed');
     }
 
     resumeSavedSession();
   },
-  () => resumableSession !== null,
-  () => {
+  onBestiary: () => {
     goToBestiary();
   },
-);
+  onExpansions: () => {
+    // Navigate to overworld which will show DLC islands when unlocked
+    if (stateMachine.current === 'menu') {
+      transitionState('play', 'menu_expansions_pressed');
+    }
+    goToOverworld();
+  },
+  getMenuState: () => ({
+    hasResumableSession: resumableSession !== null,
+    baseCampaignComplete: isBaseCampaignComplete(Array.from(progressState.completedIslands)),
+    dlcPackCount: getDlcCount(),
+    hasBestiary: true,
+  }),
+});
 
 function goToBestiary(): void {
   const bestiaryScene = new BestiaryScene(() => {

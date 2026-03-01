@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Islands &amp; Progression — Dead Reckoning: Memory Sea</title>
+  <meta name="description" content="Navigate five islands — from the calm Bay of Learning to the mighty Kraken's Reach — each teaching three AI/ML concepts through spatial memory." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="site-nav">
+    <a href="index.html" class="nav-logo">⚓ Dead Reckoning</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="gameplay.html">Gameplay</a>
+      <a href="characters.html">Characters</a>
+      <a href="encounters.html">Encounters</a>
+      <a href="islands.html" class="active">Islands</a>
+      <a href="dlc.html">DLC</a>
+      <a href="../src/index.html" class="nav-play-btn">▶ Play Now</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>The Five Islands</h1>
+    <p class="subtitle">Chart a course through AI &amp; Machine Learning</p>
+    <p class="tagline">
+      Each island introduces 3 new concepts, a unique encounter, and a ship upgrade.<br>
+      Difficulty ramps from <span style="color: var(--green);">Gentle</span> to
+      <span style="color: var(--red);">Intense</span> across the voyage.
+    </p>
+  </header>
+
+  <!-- ═══ Island Timeline ═══ -->
+  <section class="section">
+    <h2 class="section-title">Your Voyage</h2>
+    <p class="section-subtitle">Left to right: calm seas to stormy waters</p>
+
+    <div class="island-timeline">
+
+      <!-- Island 1 -->
+      <div class="timeline-island">
+        <div class="timeline-marker" style="background: var(--green);"></div>
+        <div class="card">
+          <h3>🏝️ Island 1 — Bay of Learning</h3>
+          <span class="encounter-tag tag-easy">Gentle</span>
+          <p style="margin-top: var(--space-sm); color: var(--text-muted);">
+            A calm tropical bay. Sandy beaches, palm trees, tide pools. The safest place to learn.
+          </p>
+          <h4>Concepts</h4>
+          <div style="display: flex; gap: var(--space-xs); flex-wrap: wrap;">
+            <span class="concept-pill tier-1">Training Data</span>
+            <span class="concept-pill tier-1">Labels</span>
+            <span class="concept-pill tier-1">Features</span>
+          </div>
+          <h4>Metaphors</h4>
+          <p>Fish in Crates (Training Data) · Stamped Cargo (Labels) · Weather Instruments (Features)</p>
+          <h4>Encounter</h4>
+          <p><a href="encounters.html">🌫️ Cursed Fog</a> — Push back the fog with correct recalls.</p>
+          <h4>Reward</h4>
+          <p class="rarity-common">Reinforced Hull (Common) — +1 hit point</p>
+          <h4>Emotional Arc</h4>
+          <p>Wonder → Curiosity → Confidence</p>
+        </div>
+      </div>
+
+      <!-- Island 2 -->
+      <div class="timeline-island">
+        <div class="timeline-marker" style="background: var(--cyan);"></div>
+        <div class="card">
+          <h3>🌊 Island 2 — Driftwood Shallows</h3>
+          <span class="encounter-tag tag-easy">Easy</span>
+          <p style="margin-top: var(--space-sm); color: var(--text-muted);">
+            A maze of driftwood channels, mangroves, and tidal flats. Navigation becomes important.
+          </p>
+          <h4>Concepts</h4>
+          <div style="display: flex; gap: var(--space-xs); flex-wrap: wrap;">
+            <span class="concept-pill tier-1">Model</span>
+            <span class="concept-pill tier-1">Training</span>
+            <span class="concept-pill tier-1">Inference</span>
+          </div>
+          <h4>Metaphors</h4>
+          <p>Ship Blueprint (Model) · Sailing Drills (Training) · Reading the Chart (Inference)</p>
+          <h4>Encounter</h4>
+          <p><a href="encounters.html">⛈️ Storm</a> — Lightning flashes illuminate landmarks. Choose fast.</p>
+          <h4>Reward</h4>
+          <p class="rarity-uncommon">Wind Reader (Uncommon) — faster sail speed</p>
+          <h4>Emotional Arc</h4>
+          <p>Focus → Pressure → Relief</p>
+        </div>
+      </div>
+
+      <!-- Island 3 -->
+      <div class="timeline-island">
+        <div class="timeline-marker" style="background: var(--yellow);"></div>
+        <div class="card">
+          <h3>🪸 Island 3 — Coral Maze</h3>
+          <span class="encounter-tag tag-medium">Medium</span>
+          <p style="margin-top: var(--space-sm); color: var(--text-muted);">
+            Vibrant but treacherous coral formations. First encounter with Captain Null.
+          </p>
+          <h4>Concepts</h4>
+          <div style="display: flex; gap: var(--space-xs); flex-wrap: wrap;">
+            <span class="concept-pill tier-2">Overfitting</span>
+            <span class="concept-pill tier-2">Underfitting</span>
+            <span class="concept-pill tier-2">Generalization</span>
+          </div>
+          <h4>Metaphors</h4>
+          <p>Parrot Mimic (Overfitting) · Lazy Lookout (Underfitting) · All-weather Chart (Generalization)</p>
+          <h4>Encounter</h4>
+          <p><a href="encounters.html">💥 Rival Pirate Battle</a> — Cannon duel with Captain Null.</p>
+          <h4>Reward</h4>
+          <p class="rarity-rare">Coral Cannon (Rare) — faster recall timer</p>
+          <h4>Emotional Arc</h4>
+          <p>Surprise → Competition → Satisfaction</p>
+        </div>
+      </div>
+
+      <!-- Island 4 -->
+      <div class="timeline-island">
+        <div class="timeline-marker" style="background: var(--orange);"></div>
+        <div class="card">
+          <h3>⚡ Island 4 — Storm Bastion</h3>
+          <span class="encounter-tag tag-hard">Hard</span>
+          <p style="margin-top: var(--space-sm); color: var(--text-muted);">
+            A dark volcanic island with ancient ruins and lava flows. Concepts connect into chains.
+          </p>
+          <h4>Concepts</h4>
+          <div style="display: flex; gap: var(--space-xs); flex-wrap: wrap;">
+            <span class="concept-pill tier-2">Neural Networks</span>
+            <span class="concept-pill tier-2">Layers</span>
+            <span class="concept-pill tier-2">Weights</span>
+          </div>
+          <h4>Metaphors</h4>
+          <p>Crew Chain (Neural Networks) · Decks of the Ship (Layers) · Cargo Balance (Weights)</p>
+          <h4>Encounter</h4>
+          <p><a href="encounters.html">🏛️ Ruins Exploration</a> — Order concepts to unlock sealed doors.</p>
+          <h4>Reward</h4>
+          <p class="rarity-epic">Storm Anchor (Epic) — immunity to first wrong answer per encounter</p>
+          <h4>Emotional Arc</h4>
+          <p>Awe → Determination → Mastery</p>
+        </div>
+      </div>
+
+      <!-- Island 5 -->
+      <div class="timeline-island">
+        <div class="timeline-marker" style="background: var(--pink);"></div>
+        <div class="card" style="border-color: var(--pink);">
+          <h3>🦑 Island 5 — Kraken's Reach</h3>
+          <span class="encounter-tag tag-boss">Boss</span>
+          <p style="margin-top: var(--space-sm); color: var(--text-muted);">
+            The deep ocean trench. No safe harbor. The Kraken awaits.
+          </p>
+          <h4>Concepts</h4>
+          <div style="display: flex; gap: var(--space-xs); flex-wrap: wrap;">
+            <span class="concept-pill tier-3">Bias</span>
+            <span class="concept-pill tier-3">Ethics</span>
+            <span class="concept-pill tier-3">Explainability</span>
+          </div>
+          <h4>Metaphors</h4>
+          <p>Rigged Dice (Bias) · Pirate Code (Ethics) · Captain's Log (Explainability)</p>
+          <h4>Encounter</h4>
+          <p><a href="encounters.html">🦑 Giant Squid Boss</a> — Cumulative cross-island mastery test.</p>
+          <h4>Reward</h4>
+          <p class="rarity-legendary">Kraken's Eye (Legendary) — final trophy + "Dead Reckoner" title</p>
+          <h4>Emotional Arc</h4>
+          <p>Dread → Intensity → Triumph</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ Hidden Reef ═══ -->
+  <section class="section">
+    <h2 class="section-title">🗝️ The Hidden Reef</h2>
+    <p class="section-subtitle">A secret challenge for completionists</p>
+
+    <div class="card" style="max-width: 700px; margin: var(--space-lg) auto; border-color: var(--yellow);">
+      <h3>Unlock Conditions</h3>
+      <ul>
+        <li>Beat the Kraken boss on Island 5</li>
+        <li>Achieve Expert Bonus on at least 3 islands</li>
+        <li>Total score above the mastery threshold</li>
+      </ul>
+
+      <h3 style="margin-top: var(--space-md);">What's Inside</h3>
+      <p>A mashup encounter combining all 5 encounter types into 1 frantic run. Fog, storm, cannon fire, puzzles, AND tentacles — all with concepts drawn from every island. The ultimate test of spatial memory.</p>
+
+      <h3 style="margin-top: var(--space-md);">Reward</h3>
+      <p class="rarity-legendary">Kraken Crown (Legendary) — unique cosmetic + name on high score board</p>
+    </div>
+  </section>
+
+  <!-- ═══ Concept Curriculum ═══ -->
+  <section class="section">
+    <h2 class="section-title">All 15 AI/ML Concepts</h2>
+    <p class="section-subtitle">From simple ingredients to complex ethical questions</p>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Island</th>
+          <th>Concept</th>
+          <th>Metaphor</th>
+          <th>Tier</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1 — Bay of Learning</td>
+          <td>Training Data</td>
+          <td>Fish in Crates</td>
+          <td><span class="concept-pill tier-1">Tier 1</span></td>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td>Labels</td>
+          <td>Stamped Cargo</td>
+          <td><span class="concept-pill tier-1">Tier 1</span></td>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td>Features</td>
+          <td>Weather Instruments</td>
+          <td><span class="concept-pill tier-1">Tier 1</span></td>
+        </tr>
+        <tr>
+          <td>2 — Driftwood Shallows</td>
+          <td>Model</td>
+          <td>Ship Blueprint</td>
+          <td><span class="concept-pill tier-1">Tier 1</span></td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Training</td>
+          <td>Sailing Drills</td>
+          <td><span class="concept-pill tier-1">Tier 1</span></td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Inference</td>
+          <td>Reading the Chart</td>
+          <td><span class="concept-pill tier-1">Tier 1</span></td>
+        </tr>
+        <tr>
+          <td>3 — Coral Maze</td>
+          <td>Overfitting</td>
+          <td>Parrot Mimic</td>
+          <td><span class="concept-pill tier-2">Tier 2</span></td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Underfitting</td>
+          <td>Lazy Lookout</td>
+          <td><span class="concept-pill tier-2">Tier 2</span></td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Generalization</td>
+          <td>All-weather Chart</td>
+          <td><span class="concept-pill tier-2">Tier 2</span></td>
+        </tr>
+        <tr>
+          <td>4 — Storm Bastion</td>
+          <td>Neural Networks</td>
+          <td>Crew Chain</td>
+          <td><span class="concept-pill tier-2">Tier 2</span></td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Layers</td>
+          <td>Decks of the Ship</td>
+          <td><span class="concept-pill tier-2">Tier 2</span></td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Weights</td>
+          <td>Cargo Balance</td>
+          <td><span class="concept-pill tier-2">Tier 2</span></td>
+        </tr>
+        <tr>
+          <td>5 — Kraken's Reach</td>
+          <td>Bias</td>
+          <td>Rigged Dice</td>
+          <td><span class="concept-pill tier-3">Tier 3</span></td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Ethics</td>
+          <td>Pirate Code</td>
+          <td><span class="concept-pill tier-3">Tier 3</span></td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Explainability</td>
+          <td>Captain's Log</td>
+          <td><span class="concept-pill tier-3">Tier 3</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══ Progression Summary ═══ -->
+  <section class="section">
+    <h2 class="section-title">Progression Curve</h2>
+    <p class="section-subtitle">How the game teaches without words</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>🟢 Islands 1–2</h3>
+        <p><strong>Foundation</strong> — Simple concepts, generous timers, forgiving encounters. Player learns the core loop: explore → encode → recall.</p>
+      </div>
+      <div class="card">
+        <h3>🟡 Island 3</h3>
+        <p><strong>Challenge</strong> — Competitive encounter introduces stakes. Concepts require distinguishing subtle differences (over vs. underfitting).</p>
+      </div>
+      <div class="card">
+        <h3>🟠 Island 4</h3>
+        <p><strong>Complexity</strong> — Multi-step recall. Concept ordering matters. Slower pacing rewards careful thought over speed.</p>
+      </div>
+      <div class="card">
+        <h3>🔴 Island 5</h3>
+        <p><strong>Mastery</strong> — Cross-island recall. Everything connects. Ethical concepts ask "should we?" not just "how does it work?"</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CTA ═══ -->
+  <section class="section" style="text-align: center;">
+    <h2 class="section-title">Set Sail</h2>
+    <div class="btn-group" style="margin-top: var(--space-lg);">
+      <a href="../src/index.html" class="btn btn-primary">▶ Play Now</a>
+      <a href="dlc.html" class="btn btn-secondary">Explore DLC Packs →</a>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <p>⚓ Dead Reckoning: Memory Sea</p>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="gameplay.html">Gameplay</a>
+      <a href="characters.html">Characters</a>
+      <a href="encounters.html">Encounters</a>
+      <a href="islands.html">Islands</a>
+      <a href="dlc.html">DLC</a>
+    </div>
+  </footer>
+
+</body>
+</html>

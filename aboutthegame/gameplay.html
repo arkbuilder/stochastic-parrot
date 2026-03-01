@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gameplay — Dead Reckoning: Memory Sea</title>
+  <meta name="description" content="Learn how Dead Reckoning uses the Method of Loci to teach AI concepts through spatial memory, exploration, and action." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="site-nav">
+    <a href="index.html" class="nav-logo">⚓ Dead Reckoning</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="gameplay.html" class="active">Gameplay</a>
+      <a href="characters.html">Characters</a>
+      <a href="encounters.html">Encounters</a>
+      <a href="islands.html">Islands</a>
+      <a href="dlc.html">DLC</a>
+      <a href="../src/index.html" class="nav-play-btn">▶ Play Now</a>
+    </div>
+  </nav>
+
+  <!-- ═══ Hero ═══ -->
+  <header class="hero">
+    <h1>How It Works</h1>
+    <p class="subtitle">Memory Palace meets Pirate Adventure</p>
+    <p class="tagline">
+      Dead Reckoning uses the <strong>Method of Loci</strong> — an ancient memory technique
+      where knowledge is stored in vivid spatial locations — and turns it into a pirate game.
+      You don't read definitions. You <em>stage</em> knowledge into the world.
+    </p>
+  </header>
+
+  <!-- ═══ The Big Twist ═══ -->
+  <section class="section">
+    <h2 class="section-title">The Big Twist</h2>
+    <p class="section-subtitle">You don't collect knowledge. You stage it.</p>
+
+    <div class="features-row">
+      <div class="feature-text">
+        <h3>Spatial association, not flashcards</h3>
+        <p>
+          Every AI concept is mapped to a vivid, memorable physical object in the game world.
+          When you place a concept, you're creating a spatial memory — exactly how the
+          Method of Loci has worked for thousands of years.
+        </p>
+        <ul>
+          <li><strong>Training Data</strong> → fish crates on the dock</li>
+          <li><strong>Model</strong> → captain's navigational chart table</li>
+          <li><strong>Inference</strong> → a loaded cannon, ready to fire</li>
+          <li><strong>Overfitting</strong> → a treasure chest covered in barnacles</li>
+          <li><strong>Feedback Loop</strong> → a tidewheel that cycles endlessly</li>
+        </ul>
+      </div>
+      <div>
+        <div class="card" style="border-color: var(--yellow);">
+          <span class="card-icon">🧠</span>
+          <h3>Method of Loci</h3>
+          <p>Used by memory champions for millennia. You walk through a familiar place and "deposit" memories at specific locations. Later, you mentally walk the same path to retrieve them.</p>
+          <p style="margin-top: var(--space-sm); color: var(--yellow);">In this game, the pirate islands ARE your memory palace.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Core Loop Detail ═══ -->
+  <section class="section">
+    <h2 class="section-title">The Core Gameplay Loop</h2>
+    <p class="section-subtitle">Every island follows the same satisfying 5-phase rhythm</p>
+
+    <div class="island-timeline">
+      <div class="timeline-item">
+        <span class="island-num">Phase 1 · 5–10 seconds</span>
+        <h3>⛵ Arrival</h3>
+        <p>Your ship auto-docks at a new island. The island name appears carved into a signpost — no UI overlay, pure environmental storytelling. The camera frames the island in portrait view, building anticipation.</p>
+      </div>
+
+      <div class="timeline-item">
+        <span class="island-num">Phase 2 · 60–120 seconds</span>
+        <h3>📍 Exploration &amp; Encoding</h3>
+        <p>Walk between 3 landmarks. Each reveals one concept card. Place the concept into its landmark — "Training Data" drops into the fish crates, "Model" unfolds on the chart table. This is a <strong>safe sandbox</strong> — no threats during encoding. Take your time and build strong spatial associations.</p>
+      </div>
+
+      <div class="timeline-item">
+        <span class="island-num">Phase 3 · 5–10 seconds</span>
+        <h3>⚡ Encounter Trigger</h3>
+        <p>The sky darkens. The sea churns. Fog rolls in, lightning cracks, or a red sail appears on the horizon. The environment transforms to signal danger — and the recall phase begins.</p>
+      </div>
+
+      <div class="timeline-item">
+        <span class="island-num">Phase 4 · 30–90 seconds</span>
+        <h3>🎯 Recall Sequence</h3>
+        <p>Icon-based spatial riddles test your memory. "What feeds the learning?" shows a fish icon and an empty crate — you must tap the Dock Crates landmark. Difficulty climbs within the encounter. Novice assists activate after failures; expert paths reward perfection.</p>
+      </div>
+
+      <div class="timeline-item">
+        <span class="island-num">Phase 5 · 10–20 seconds</span>
+        <h3>🏆 Resolution &amp; Reward</h3>
+        <p>Threat defeated! Earn a Chart Fragment, ship upgrade, or rare relic. Watch the sea chart fill in. See a preview of the next island as a silhouette on the horizon. The cycle begins again.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Fail / Retry ═══ -->
+  <section class="section">
+    <h2 class="section-title">Fair Failure</h2>
+    <p class="section-subtitle">Fail fast, retry faster — always under 5 seconds back to action</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <span class="card-icon">⏱️</span>
+        <h3>5-Second Retry</h3>
+        <p>Every fail state in the game gets you back to the action in under 5 seconds. No long game-over screens. No reload. Quick animation, immediate retry.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🦜</span>
+        <h3>Novice Assists</h3>
+        <p>After 2 failures on the same prompt, your parrot Bit flies toward the correct landmark. Fog slows down. Lightning holds its flash longer. The game helps without telling you the answer.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">⭐</span>
+        <h3>Expert Mastery</h3>
+        <p>Get everything right on the first try? Unlock hidden chambers, rare relics, bonus score multipliers, and ultimately the secret Hidden Reef island.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Ship Upgrades ═══ -->
+  <section class="section">
+    <h2 class="section-title">Ship Upgrades</h2>
+    <p class="section-subtitle">Your ship the Loci evolves as you progress — rewards make recall more forgiving, not more powerful</p>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Island</th>
+          <th>Upgrade</th>
+          <th>Effect</th>
+          <th>Rarity</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Island 1</td>
+          <td>—</td>
+          <td>Tutorial island, no upgrade</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Island 2</td>
+          <td>Reinforced Mast</td>
+          <td>1.2× sailing speed, Bit flies faster during assists</td>
+          <td><span class="rarity-common">● Common</span></td>
+        </tr>
+        <tr>
+          <td>Island 3</td>
+          <td>Enchanted Cannon</td>
+          <td>+1 error tolerance in pirate battles</td>
+          <td><span class="rarity-uncommon">● Uncommon</span></td>
+        </tr>
+        <tr>
+          <td>Island 4</td>
+          <td>Ironclad Hull</td>
+          <td>+1 storm hit resistance</td>
+          <td><span class="rarity-rare">● Rare</span></td>
+        </tr>
+        <tr>
+          <td>Island 5</td>
+          <td>Golden Compass</td>
+          <td>+2s recall window on all encounters</td>
+          <td><span class="rarity-epic">● Epic</span></td>
+        </tr>
+        <tr>
+          <td>All Expert Bonuses</td>
+          <td>Ghostlight Lantern</td>
+          <td>Reveals the Hidden Reef secret island</td>
+          <td><span class="rarity-legendary">● Legendary</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══ Concept Mapping Showcase ═══ -->
+  <section class="section">
+    <h2 class="section-title">Concept ↔ Metaphor Examples</h2>
+    <p class="section-subtitle">Every concept has a vivid physical metaphor — not a definition, but a memorable object</p>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>AI Concept</th>
+          <th>Metaphor Object</th>
+          <th>Landmark</th>
+          <th>Why It Works</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Training Data</td>
+          <td>🐟 Fish crates full of sample catches</td>
+          <td>Dock Crates</td>
+          <td>Data is the raw material — just like fish in crates</td>
+        </tr>
+        <tr>
+          <td>Model</td>
+          <td>🗺️ Captain's navigational chart</td>
+          <td>Chart Table</td>
+          <td>A model maps patterns — just like a chart maps the sea</td>
+        </tr>
+        <tr>
+          <td>Inference</td>
+          <td>💥 Loaded cannon ready to fire</td>
+          <td>Cannon</td>
+          <td>Inference fires a conclusion — aim and shoot</td>
+        </tr>
+        <tr>
+          <td>Bias</td>
+          <td>🧭 Crooked compass</td>
+          <td>Compass Pedestal</td>
+          <td>Always points slightly wrong — systematically off</td>
+        </tr>
+        <tr>
+          <td>Overfitting</td>
+          <td>🪸 Barnacle-encrusted chest</td>
+          <td>Barnacle Chest</td>
+          <td>So over-decorated it won't open — too specific, too rigid</td>
+        </tr>
+        <tr>
+          <td>Neural Network</td>
+          <td>🕸️ Signal ropes connecting mast lights</td>
+          <td>Rigging Web</td>
+          <td>Nodes (lanterns) connected by ropes, each lighting on signal</td>
+        </tr>
+        <tr>
+          <td>Gradient Descent</td>
+          <td>⚓ Anchor lowering step-by-step</td>
+          <td>Anchor Winch</td>
+          <td>Finding the lowest point — one deliberate step at a time</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="text-align: center; margin-top: var(--space-lg);">
+      <a href="islands.html" class="btn btn-secondary">See All 15 Concepts →</a>
+    </div>
+  </section>
+
+  <!-- ═══ Controls ═══ -->
+  <section class="section">
+    <h2 class="section-title">Dual Input</h2>
+    <p class="section-subtitle">Play on phone or PC — every interaction works on both touch and keyboard/mouse</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <span class="card-icon">📱</span>
+        <h3>Touch / Mobile</h3>
+        <p>Portrait-first design. Primary actions in the lower ⅓ of the screen (thumb reach zone). Hazards in the upper ⅓. Tap to select, drag to place, swipe to navigate.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🖥️</span>
+        <h3>Mouse &amp; Keyboard</h3>
+        <p>Click to select and place. Arrow keys or WASD to navigate. Keyboard shortcuts for quick recall. ±20% time parity with touch — neither input feels disadvantaged.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CTA ═══ -->
+  <section class="section" style="text-align: center;">
+    <h2 class="section-title">Ready to Sail?</h2>
+    <div class="btn-group" style="margin-top: var(--space-lg);">
+      <a href="../src/index.html" class="btn btn-primary">▶ Play Now</a>
+      <a href="encounters.html" class="btn btn-secondary">See the Encounters →</a>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <p>⚓ Dead Reckoning: Memory Sea</p>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="gameplay.html">Gameplay</a>
+      <a href="characters.html">Characters</a>
+      <a href="encounters.html">Encounters</a>
+      <a href="islands.html">Islands</a>
+      <a href="dlc.html">DLC</a>
+    </div>
+  </footer>
+
+</body>
+</html>

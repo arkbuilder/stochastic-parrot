@@ -43,6 +43,11 @@ const DETAIL_BACK: Rect = { x: 8, y: 8, w: 52, h: 24 };
 const DETAIL_PREVIEW_Y = 80;
 const DETAIL_TEXT_TOP = 170;
 
+export interface BestiaryNarrationDeps {
+  narrateEntry?: (entry: BestiaryEntry) => void;
+  stopNarration?: () => void;
+}
+
 export class BestiaryScene implements Scene {
   private elapsed = 0;
   private mode: ViewMode = 'list';
@@ -52,7 +57,10 @@ export class BestiaryScene implements Scene {
   private scrollOffset = 0;
   private detailEntry: BestiaryEntry | null = null;
 
-  constructor(private readonly onBack: () => void) {}
+  constructor(
+    private readonly onBack: () => void,
+    private readonly narration: BestiaryNarrationDeps = {},
+  ) {}
 
   enter(_context: SceneContext): void {
     this.elapsed = 0;
@@ -63,7 +71,9 @@ export class BestiaryScene implements Scene {
     this.detailEntry = null;
   }
 
-  exit(): void {}
+  exit(): void {
+    this.narration.stopNarration?.();
+  }
 
   // ── Update ──────────────────────────────────────────────────
 
@@ -134,11 +144,7 @@ export class BestiaryScene implements Scene {
     if (action.type === 'move') {
       // Left/right to browse prev/next entry
       if (action.dx && action.dx !== 0) {
-        const entries = this.currentEntries();
-        if (entries.length > 0) {
-          this.selectedIndex = mod(this.selectedIndex + Math.sign(action.dx), entries.length);
-          this.detailEntry = entries[this.selectedIndex] ?? null;
-        }
+        this.browseDetail(Math.sign(action.dx));
       }
       return;
     }
@@ -420,12 +426,16 @@ export class BestiaryScene implements Scene {
     const entries = this.currentEntries();
     if (entries.length === 0) return;
     this.detailEntry = entries[this.selectedIndex] ?? null;
-    if (this.detailEntry) this.mode = 'detail';
+    if (this.detailEntry) {
+      this.mode = 'detail';
+      this.narrateCurrentEntry();
+    }
   }
 
   private closeDetail(): void {
     this.mode = 'list';
     this.detailEntry = null;
+    this.narration.stopNarration?.();
   }
 
   private browseDetail(dir: number): void {
@@ -434,6 +444,13 @@ export class BestiaryScene implements Scene {
     this.selectedIndex = mod(this.selectedIndex + dir, entries.length);
     this.detailEntry = entries[this.selectedIndex] ?? null;
     this.ensureVisible();
+    this.narrateCurrentEntry();
+  }
+
+  private narrateCurrentEntry(): void {
+    if (!this.detailEntry) return;
+    this.narration.stopNarration?.();
+    this.narration.narrateEntry?.(this.detailEntry);
   }
 
   private ensureVisible(): void {

@@ -975,9 +975,35 @@ function goToCampaignSelect(): void {
 }
 
 function goToBestiary(): void {
-  const bestiaryScene = new BestiaryScene(() => {
-    goToMenu();
-  });
+  const bestiaryScene = new BestiaryScene(
+    () => {
+      narration.cancel();
+      goToMenu();
+    },
+    {
+      narrateEntry: (entry) => {
+        const category = entry.category === 'critter'
+          ? 'island critter'
+          : entry.category === 'threat'
+            ? 'sea threat'
+            : entry.category === 'flora'
+              ? 'island flora'
+              : 'terrain feature';
+        const line = [
+          entry.name,
+          category,
+          `danger ${entry.danger} out of 5`,
+          entry.flavour,
+          entry.behaviour,
+          `habitat: ${entry.habitat.join(', ')}`,
+        ].join('. ');
+        narration.speak(line, { interrupt: true, rate: 0.95, pitch: 0.9, volume: 0.95 });
+      },
+      stopNarration: () => {
+        narration.cancel();
+      },
+    },
+  );
   sceneManager.replace(bestiaryScene);
   (window as Window & { __dr_scene?: string }).__dr_scene = 'bestiary';
 }

@@ -38,6 +38,7 @@ import { getConceptMinigame } from './data/concept-minigames';
 import { registerDlcPack, listDlcPacks } from './dlc/dlc-registry';
 import { IntroScene } from './scenes/intro-scene';
 import { DlcCreditsScene } from './scenes/dlc-credits-scene';
+import { CampaignSelectScene } from './scenes/campaign-select-scene';
 import { AudioEvent } from './audio/types';
 import type { AccessibilitySettings, ConceptMasteryState, MasteryLevel, SessionSave } from './persistence/types';
 import { ROCKET_SCIENCE_PACK } from './dlc/packs/rocket-science-pack';
@@ -900,13 +901,8 @@ function startIsland(islandId: string): void {
 }
 
 const menuScene = new MenuScene({
-  onStart: () => {
-    saveSessionState(null);
-    if (stateMachine.current === 'menu') {
-      transitionState('play', 'menu_start_pressed');
-    }
-
-    goToOverworld();
+  onPlay: () => {
+    goToCampaignSelect();
   },
   onLeaderboard: () => {
     goToLeaderboard();
@@ -921,19 +917,45 @@ const menuScene = new MenuScene({
   onBestiary: () => {
     goToBestiary();
   },
-  onExpansions: () => {
-    // Navigate to overworld showing only DLC islands
-    if (stateMachine.current === 'menu') {
-      transitionState('play', 'menu_expansions_pressed');
-    }
-    const dlcNodes = getAllOverworldNodes().filter((n) => n.islandId.startsWith('dlc_'));
-    goToOverworld(undefined, dlcNodes.length > 0 ? dlcNodes : undefined);
-  },
   getMenuState: () => ({
     hasResumableSession: resumableSession !== null,
     hasBestiary: true,
   }),
 });
+
+/**
+ * Show the campaign selection screen (base game + DLC packs).
+ * Selecting a campaign routes to the appropriate overworld.
+ */
+function goToCampaignSelect(): void {
+  const campaignScene = new CampaignSelectScene({
+    onCampaignSelect: (campaignId) => {
+      if (stateMachine.current === 'menu') {
+        transitionState('play', 'campaign_selected');
+      }
+
+      if (campaignId === 'base') {
+        // Base game — clear session and launch default overworld
+        saveSessionState(null);
+        goToOverworld();
+      } else {
+        // DLC campaign — filter overworld to DLC-specific nodes
+        saveSessionState(null);
+        const dlcPrefix = campaignId === 'rocket-science' ? 'dlc_' : `dlc_`;
+        const dlcNodes = getAllOverworldNodes().filter(
+          (n) => n.islandId.startsWith(dlcPrefix),
+        );
+        goToOverworld(undefined, dlcNodes.length > 0 ? dlcNodes : undefined);
+      }
+    },
+    onBack: () => {
+      goToMenu();
+    },
+  });
+
+  sceneManager.replace(campaignScene);
+  (window as Window & { __dr_scene?: string }).__dr_scene = 'campaign_select';
+}
 
 function goToBestiary(): void {
   const bestiaryScene = new BestiaryScene(() => {

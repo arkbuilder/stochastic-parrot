@@ -32,11 +32,10 @@ function defaultState(overrides: Partial<MenuState> = {}): MenuState {
 
 function defaultDeps(overrides: Partial<MenuSceneDeps> = {}): MenuSceneDeps {
   return {
-    onStart: vi.fn(),
+    onPlay: vi.fn(),
     onResume: vi.fn(),
     onLeaderboard: vi.fn(),
     onBestiary: vi.fn(),
-    onExpansions: vi.fn(),
     getMenuState: () => defaultState(),
     ...overrides,
   };
@@ -88,9 +87,9 @@ describe('computeMenuItems — IA structure', () => {
 
   // ── Basic item presence ──
 
-  it('IA1 — always includes NEW VOYAGE', () => {
+  it('IA1 — always includes PLAY', () => {
     const items = computeMenuItems(defaultState());
-    expect(items.some((i) => i.id === 'start')).toBe(true);
+    expect(items.some((i) => i.id === 'play')).toBe(true);
   });
 
   it('IA2 — always includes LEADERBOARD', () => {
@@ -120,39 +119,35 @@ describe('computeMenuItems — IA structure', () => {
 
   // ── DLC / Expansions ──
 
-  it('IA7 — always includes STARBOARD LAUNCH (Rocket DLC)', () => {
+  it('IA7 — no longer has a separate expansions item', () => {
     const items = computeMenuItems(defaultState());
-    expect(items.some((i) => i.id === 'expansions')).toBe(true);
-    const dlcItem = items.find((i) => i.id === 'expansions')!;
-    expect(dlcItem.label).toBe('STARBOARD LAUNCH');
-    expect(dlcItem.locked).toBe(false);
+    expect(items.some((i) => i.id === 'expansions' as string)).toBe(false);
   });
 
-  it('IA8 — STARBOARD LAUNCH is never locked', () => {
+  it('IA8 — PLAY button is never locked', () => {
     const items = computeMenuItems(defaultState());
-    const dlcItem = items.find((i) => i.id === 'expansions')!;
-    expect(dlcItem.locked).toBe(false);
-    expect(dlcItem.hint).toBe('');
+    const playItem = items.find((i) => i.id === 'play')!;
+    expect(playItem.locked).toBe(false);
   });
 
   // ── Ordering ──
 
-  it('IA13 — RESUME comes before NEW VOYAGE when present', () => {
+  it('IA13 — RESUME comes before PLAY when present', () => {
     const items = computeMenuItems(defaultState({ hasResumableSession: true }));
     const order = ids(items);
-    expect(order.indexOf('resume')).toBeLessThan(order.indexOf('start'));
+    expect(order.indexOf('resume')).toBeLessThan(order.indexOf('play'));
   });
 
-  it('IA14 — NEW VOYAGE comes before STARBOARD LAUNCH', () => {
+  it('IA14 — PLAY comes before LEADERBOARD', () => {
     const items = computeMenuItems(defaultState());
     const order = ids(items);
-    expect(order.indexOf('start')).toBeLessThan(order.indexOf('expansions'));
+    expect(order.indexOf('play')).toBeLessThan(order.indexOf('leaderboard'));
   });
 
-  it('IA15 — STARBOARD LAUNCH comes before LEADERBOARD', () => {
+  it('IA15 — PLAY comes before LEADERBOARD (redundant check)', () => {
     const items = computeMenuItems(defaultState());
     const order = ids(items);
-    expect(order.indexOf('expansions')).toBeLessThan(order.indexOf('leaderboard'));
+    expect(order.indexOf('play')).toBeLessThan(order.indexOf('leaderboard'));
   });
 
   it('IA16 — LEADERBOARD comes before BESTIARY when both present', () => {
@@ -161,20 +156,20 @@ describe('computeMenuItems — IA structure', () => {
     expect(order.indexOf('leaderboard')).toBeLessThan(order.indexOf('bestiary'));
   });
 
-  it('IA17 — full order with all items: resume → start → expansions → leaderboard → bestiary', () => {
+  it('IA17 — full order with all items: resume → play → leaderboard → bestiary', () => {
     const items = computeMenuItems(defaultState({
       hasResumableSession: true,
       hasBestiary: true,
     }));
-    expect(ids(items)).toEqual(['resume', 'start', 'expansions', 'leaderboard', 'bestiary']);
+    expect(ids(items)).toEqual(['resume', 'play', 'leaderboard', 'bestiary']);
   });
 
-  it('IA18 — minimal order (no resume, no bestiary): start → expansions → leaderboard', () => {
+  it('IA18 — minimal order (no resume, no bestiary): play → leaderboard', () => {
     const items = computeMenuItems(defaultState({
       hasResumableSession: false,
       hasBestiary: false,
     }));
-    expect(ids(items)).toEqual(['start', 'expansions', 'leaderboard']);
+    expect(ids(items)).toEqual(['play', 'leaderboard']);
   });
 
   // ── No locked items except expansions ──
@@ -286,11 +281,11 @@ describe('MenuScene — interaction', () => {
 
   // ── Activation ──
 
-  it('IX1 — keyboard Enter on NEW VOYAGE calls onStart', () => {
-    // Default selection should be on 'start'
+  it('IX1 — keyboard Enter on PLAY calls onPlay', () => {
+    // Default selection should be on 'play'
     const enterAction: InputAction = { type: 'primary', x: NaN, y: NaN };
     scene.update(0.016, [enterAction]);
-    expect(deps.onStart).toHaveBeenCalled();
+    expect(deps.onPlay).toHaveBeenCalled();
   });
 
   it('IX2 — tap on LEADERBOARD calls onLeaderboard', () => {
@@ -328,14 +323,14 @@ describe('MenuScene — interaction', () => {
 
   // ── DLC interaction ──
 
-  it('IX5 — tap on STARBOARD LAUNCH calls onExpansions', () => {
+  it('IX5 — PLAY is a single button that opens campaign select', () => {
     const items = computeMenuItems(state);
     const rects = computeButtonRects(items);
-    const dlcIdx = items.findIndex((i) => i.id === 'expansions');
-    const r = rects[dlcIdx]!;
+    const playIdx = items.findIndex((i) => i.id === 'play');
+    const r = rects[playIdx]!;
     const tap: InputAction = { type: 'primary', x: r.x + r.w / 2, y: r.y + r.h / 2 };
     scene.update(0.016, [tap]);
-    expect(deps.onExpansions).toHaveBeenCalled();
+    expect(deps.onPlay).toHaveBeenCalled();
   });
 
   // ── Keyboard navigation ──
@@ -353,10 +348,9 @@ describe('MenuScene — interaction', () => {
     scene.update(0.016, [enterAction]);
     // Some callback should have been called (whichever item is selected)
     expect(
-      (deps.onStart as ReturnType<typeof vi.fn>).mock.calls.length +
+      (deps.onPlay as ReturnType<typeof vi.fn>).mock.calls.length +
       (deps.onLeaderboard as ReturnType<typeof vi.fn>).mock.calls.length +
-      (deps.onBestiary as ReturnType<typeof vi.fn>).mock.calls.length +
-      (deps.onExpansions as ReturnType<typeof vi.fn>).mock.calls.length
+      (deps.onBestiary as ReturnType<typeof vi.fn>).mock.calls.length
     ).toBeGreaterThanOrEqual(0); // No crash = pass
   });
 
@@ -382,10 +376,9 @@ describe('MenuScene — interaction', () => {
   it('IX11 — tap outside any button does nothing', () => {
     const tap: InputAction = { type: 'primary', x: 0, y: 0 };
     scene.update(0.016, [tap]);
-    expect(deps.onStart).not.toHaveBeenCalled();
+    expect(deps.onPlay).not.toHaveBeenCalled();
     expect(deps.onLeaderboard).not.toHaveBeenCalled();
     expect(deps.onBestiary).not.toHaveBeenCalled();
-    expect(deps.onExpansions).not.toHaveBeenCalled();
     expect(deps.onResume).not.toHaveBeenCalled();
   });
 
@@ -412,15 +405,15 @@ describe('MenuScene — rendering', () => {
     expect(() => scene.render(makeCtxStub())).not.toThrow();
   });
 
-  it('RN2 — render does not throw after tapping STARBOARD LAUNCH', () => {
+  it('RN2 — render does not throw after tapping PLAY', () => {
     const state = defaultState();
     const deps = defaultDeps({ getMenuState: () => state });
     const scene = new MenuScene(deps);
     scene.enter({ now: () => 0 });
     const items = computeMenuItems(state);
     const rects = computeButtonRects(items);
-    const dlcIdx = items.findIndex((i) => i.id === 'expansions');
-    const r = rects[dlcIdx]!;
+    const playIdx = items.findIndex((i) => i.id === 'play');
+    const r = rects[playIdx]!;
     scene.update(0.016, [{ type: 'primary', x: r.x + r.w / 2, y: r.y + r.h / 2 }]);
     expect(() => scene.render(makeCtxStub())).not.toThrow();
   });
@@ -460,16 +453,15 @@ describe('computeMenuItems — state permutations', () => {
         const state: MenuState = { hasResumableSession, hasBestiary };
         const items = computeMenuItems(state);
 
-        // Always at least start + expansions + leaderboard
-        expect(items.length).toBeGreaterThanOrEqual(3);
+        // Always at least play + leaderboard
+        expect(items.length).toBeGreaterThanOrEqual(2);
 
         // No duplicates
         const itemIds = ids(items);
         expect(new Set(itemIds).size).toBe(itemIds.length);
 
-        // Start, expansions, and leaderboard always present
-        expect(itemIds).toContain('start');
-        expect(itemIds).toContain('expansions');
+        // Play and leaderboard always present
+        expect(itemIds).toContain('play');
         expect(itemIds).toContain('leaderboard');
 
         // Resume present iff hasResumableSession
@@ -477,9 +469,6 @@ describe('computeMenuItems — state permutations', () => {
 
         // Bestiary present iff hasBestiary
         expect(itemIds.includes('bestiary')).toBe(hasBestiary);
-
-        // Expansions (Rocket DLC) is never locked
-        expect(items.find((i) => i.id === 'expansions')!.locked).toBe(false);
 
         // Layout should produce valid rects
         const rects = computeButtonRects(items);

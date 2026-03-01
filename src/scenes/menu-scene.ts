@@ -7,7 +7,7 @@ import { drawButton, drawOceanGradient, drawSkyGradient, drawStars, drawShip, dr
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
-export type MenuItemId = 'resume' | 'start' | 'expansions' | 'leaderboard' | 'bestiary';
+export type MenuItemId = 'resume' | 'play' | 'leaderboard' | 'bestiary';
 
 export interface MenuItemConfig {
   id: MenuItemId;
@@ -32,11 +32,11 @@ export interface MenuState {
  * Separating state from callbacks makes the pure logic testable.
  */
 export interface MenuSceneDeps {
-  onStart: () => void;
+  /** Opens the campaign selection screen */
+  onPlay: () => void;
   onResume: () => void;
   onLeaderboard: () => void;
   onBestiary: () => void;
-  onExpansions: () => void;
   getMenuState: () => MenuState;
 }
 
@@ -64,10 +64,7 @@ export function computeMenuItems(state: MenuState): MenuItemConfig[] {
     items.push({ id: 'resume', label: 'RESUME', locked: false, hint: '' });
   }
 
-  items.push({ id: 'start', label: 'NEW VOYAGE', locked: false, hint: '' });
-
-  // Rocket DLC — always accessible from main menu
-  items.push({ id: 'expansions', label: 'STARBOARD LAUNCH', locked: false, hint: '' });
+  items.push({ id: 'play', label: 'PLAY', locked: false, hint: '' });
 
   items.push({ id: 'leaderboard', label: 'LEADERBOARD', locked: false, hint: '' });
 
@@ -86,7 +83,7 @@ export function computeMenuItems(state: MenuState): MenuItemConfig[] {
 export function computeButtonRects(items: MenuItemConfig[]): Rect[] {
   let y = FIRST_BUTTON_Y;
   return items.map((item) => {
-    const h = item.id === 'resume' || item.id === 'start' ? PRIMARY_H : SECONDARY_H;
+    const h = item.id === 'resume' || item.id === 'play' ? PRIMARY_H : SECONDARY_H;
     const rect: Rect = { x: BUTTON_X, y, w: BUTTON_W, h };
     y += h + GAP;
     return rect;
@@ -109,7 +106,7 @@ export class MenuScene implements Scene {
     this.hintText = '';
     this.hintTimer = 0;
     const items = computeMenuItems(this.deps.getMenuState());
-    this.selectedIndex = items.findIndex((item) => item.id === 'start');
+    this.selectedIndex = items.findIndex((item) => item.id === 'play');
     if (this.selectedIndex < 0) {
       this.selectedIndex = 0;
     }
@@ -244,11 +241,8 @@ export class MenuScene implements Scene {
       case 'resume':
         this.deps.onResume();
         break;
-      case 'start':
-        this.deps.onStart();
-        break;
-      case 'expansions':
-        this.deps.onExpansions();
+      case 'play':
+        this.deps.onPlay();
         break;
       case 'leaderboard':
         this.deps.onLeaderboard();

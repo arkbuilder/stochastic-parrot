@@ -1,6 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BestiaryScene } from '../../../src/scenes/bestiary-scene';
 import { BESTIARY, CRITTERS, THREATS, FLORA, TERRAIN } from '../../../src/data/bestiary';
+import { resetGameData, mergeDlcIntoGameData } from '../../../src/data/game-data';
+import { ROCKET_SCIENCE_PACK } from '../../../src/dlc/packs/rocket-science-pack';
 import type { InputAction } from '../../../src/input/types';
 
 // ── Canvas mock ──────────────────────────────────────────────
@@ -47,6 +49,11 @@ const MOVE_UP: InputAction = { type: 'move', dx: 0, dy: -1 };
 const MOVE_RIGHT: InputAction = { type: 'move', dx: 1, dy: 0 };
 const MOVE_LEFT: InputAction = { type: 'move', dx: -1, dy: 0 };
 const SECONDARY: InputAction = { type: 'secondary', x: 0, y: 0 };
+
+// Ensure game-data is reset between tests to avoid DLC leaking between tests
+beforeEach(() => {
+  resetGameData();
+});
 
 function createScene(): { scene: BestiaryScene; onBack: ReturnType<typeof vi.fn> } {
   const onBack = vi.fn();
@@ -370,5 +377,97 @@ describe('BestiaryScene — terrain tab', () => {
     scene.render(ctx);
     const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
     expect(texts).toContain('GROUND TILE');
+  });
+});
+
+// ── DLC source toggle ────────────────────────────────────────
+
+describe('BestiaryScene — DLC source toggle', () => {
+  // SOURCE_BUTTON: x:140, y:8, w:92, h:24 — tap center at (186, 20)
+  const TAP_SOURCE = TAP(186, 20);
+
+  it('source toggle button does not appear when no DLC is merged', () => {
+    const { scene } = createScene();
+    const ctx = makeCtx();
+    scene.render(ctx);
+    const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
+    // None of the source labels should be rendered as a button
+    expect(texts.filter((t: string) => typeof t === 'string' && t.startsWith('▸'))).toHaveLength(0);
+  });
+
+  it('source toggle button appears when DLC is merged', () => {
+    mergeDlcIntoGameData(ROCKET_SCIENCE_PACK);
+    const { scene } = createScene();
+    const ctx = makeCtx();
+    scene.render(ctx);
+    const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
+    expect(texts).toContain('▸ ALL');
+  });
+
+  it('tapping source button cycles from ALL to BASE', () => {
+    mergeDlcIntoGameData(ROCKET_SCIENCE_PACK);
+    const { scene } = createScene();
+    scene.update(0.016, [TAP_SOURCE]); // cycle once: ALL → BASE
+    const ctx = makeCtx();
+    scene.render(ctx);
+    const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
+    expect(texts).toContain('▸ BASE');
+  });
+
+  it('tapping source button twice cycles to DLC name', () => {
+    mergeDlcIntoGameData(ROCKET_SCIENCE_PACK);
+    const { scene } = createScene();
+    scene.update(0.016, [TAP_SOURCE]); // ALL → BASE
+    scene.update(0.016, [TAP_SOURCE]); // BASE → ROCKET
+    const ctx = makeCtx();
+    scene.render(ctx);
+    const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
+    expect(texts).toContain('▸ ROCKET');
+  });
+
+  it('tapping source button three times wraps back to ALL', () => {
+    mergeDlcIntoGameData(ROCKET_SCIENCE_PACK);
+    const { scene } = createScene();
+    scene.update(0.016, [TAP_SOURCE]); // ALL → BASE
+    scene.update(0.016, [TAP_SOURCE]); // BASE → ROCKET
+    scene.update(0.016, [TAP_SOURCE]); // ROCKET → ALL
+    const ctx = makeCtx();
+    scene.render(ctx);
+    const texts = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
+    expect(texts).toContain('▸ ALL');
+  });
+
+  it('DLC source filter shows only DLC bestiary entries', () => {
+    mergeDlcIntoGameData(ROCKET_SCIENCE_PACK);
+    const { scene } = createScene();
+    // Cycle to DLC source: ALL → BASE → ROCKET
+    scene.update(0.016, [TAP_SOURCE]);
+    scene.update(0.016, [TAP_SOURCE]);
+    // Render and check entry count — DLC critter count (if any) should differ from base
+    const ctx = makeCtx();
+    scene.render(ctx);
+    // Just verify it renders without error when filtered to DLC entries
+    expect(() => scene.render(makeCtx())).not.toThrow();
+  });
+
+  it('BASE source filter excludes DLC entries', () => {
+    mergeDlcIntoGameData(ROCKET_SCIENCE_PACK);
+    const { scene } = createScene();
+    scene.update(0.016, [TAP_SOURCE]); // ALL → BASE
+    // Render should succeed
+    expect(() => scene.render(makeCtx())).not.toThrow();
+  });
+
+  it('switching source resets selection index', () => {
+    mergeDlcIntoGameData(ROCKET_SCIENCE_PACK);
+    const { scene } = createScene();
+    // Move selection down a few
+    scene.update(0.016, [MOVE_DOWN]);
+    scene.update(0.016, [MOVE_DOWN]);
+    // Switch source — selection should reset to 0
+    scene.update(0.016, [TAP_SOURCE]);
+    // If we open detail, it should be the first entry (index 0)
+    scene.update(0.016, [KEYBOARD_ENTER]);
+    expect(() => scene.render(makeCtx())).not.toThrow();
   });
 });

@@ -57,7 +57,7 @@ export {
 export type { ScheduledNote, ScheduledDrumHit } from './sequencer';
 
 /* ── Voice ── */
-export { textToPhonemeIds, buildVoiceFrames, estimateVoiceDuration } from './voice';
+export { textToPhonemeIds, buildVoiceFrames, estimateVoiceDuration, estimateVoicedRatio } from './voice';
 export type { VoiceOptions, VoicePhoneme, VoiceFrame } from './voice';
 
 /* ── Songs ── */

@@ -1,7 +1,7 @@
 import { GAME_HEIGHT, GAME_WIDTH, type Scene, type SceneContext } from '../core/types';
 import type { InputAction } from '../input/types';
 import { TOKENS } from '../rendering/tokens';
-import { drawVignette, rgba } from '../rendering/draw';
+import { drawVignette, drawButton, rgba } from '../rendering/draw';
 import { AudioEvent } from '../audio/types';
 
 /** Phase flow: curtain → scroll → done */
@@ -13,6 +13,9 @@ const TYPE_SPEED_FAST_MS = 8; // ms per character when tapping
 const SCROLL_PADDING_X = 24;
 const SCROLL_PADDING_Y = 16;
 const LINE_HEIGHT = 12;
+
+/** Hit-rect for the "SET SAIL" button shown after scroll completes */
+export const SAIL_BUTTON_RECT = { x: 56, y: 356, w: 128, h: 30 };
 
 const SCROLL_TEXT = [
   'Ahoy, brave navigator!',
@@ -124,9 +127,10 @@ export class IntroScene implements Scene {
           this.elapsed = 0;
         }
 
-        // After text is complete, tap or wait 2s to exit
-        if (this.scrollDone) {
-          if (hasTap || this.elapsed > 2.0) {
+        // After text is complete, require explicit button tap to exit
+        if (this.scrollDone && hasTap) {
+          const tap = actions.find((a) => a.type === 'primary');
+          if (tap && this.isSailButtonHit(tap)) {
             this.phase = 'done';
             this.stopNarration?.();
             this.onDone();
@@ -182,6 +186,9 @@ export class IntroScene implements Scene {
     // Right curtain
     const rightX = halfW + openAmount;
     this.drawCurtainHalf(ctx, rightX, halfW, t, true);
+
+    // Kraken tentacles gripping and pulling the curtains
+    this.renderKrakenTentacles(ctx, t, halfW, openAmount);
 
     // Curtain rod
     ctx.fillStyle = '#8b6f47';
@@ -361,33 +368,181 @@ export class IntroScene implements Scene {
       ctx.fillRect(cursorX, cursorY, 1, 8);
     }
 
-    // Continue prompt after text is done
+    // SET SAIL button after text is done
     if (this.scrollDone) {
-      const pulse = 0.4 + Math.sin(t * 3) * 0.3;
-      ctx.fillStyle = rgba(TOKENS.colorCyan400, pulse);
-      ctx.font = TOKENS.fontSmall;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Tap to set sail...', GAME_WIDTH / 2, scrollY + scrollH + 24);
+      const btn = SAIL_BUTTON_RECT;
+      drawButton(ctx, btn.x, btn.y, btn.w, btn.h, 'SET SAIL', true, 11);
+
+      // Subtle compass accent above the button
+      const compassAlpha = 0.6;
+      ctx.globalAlpha = compassAlpha;
+      ctx.strokeStyle = TOKENS.colorCyan400;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(GAME_WIDTH / 2, btn.y - 14, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      // North pointer
+      ctx.fillStyle = TOKENS.colorYellow400;
+      ctx.beginPath();
+      ctx.moveTo(GAME_WIDTH / 2, btn.y - 20);
+      ctx.lineTo(GAME_WIDTH / 2 - 2, btn.y - 14);
+      ctx.lineTo(GAME_WIDTH / 2 + 2, btn.y - 14);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  private isSailButtonHit(action: InputAction): boolean {
+    if (action.type !== 'primary') return false;
+    if (Number.isNaN(action.x)) return true; // keyboard enter
+    const b = SAIL_BUTTON_RECT;
+    return action.x >= b.x && action.x <= b.x + b.w &&
+           action.y >= b.y && action.y <= b.y + b.h;
+  }
+
+  // ── Kraken tentacle puppeteering ──────────────────────────────
+
+  private renderKrakenTentacles(
+    ctx: CanvasRenderingContext2D,
+    t: number,
+    halfW: number,
+    openAmount: number,
+  ): void {
+    // 3 tentacles per side at different heights
+    const configs = [
+      { yFrac: 0.28, phase: 0.0, thick: 8 },
+      { yFrac: 0.52, phase: 1.8, thick: 11 },
+      { yFrac: 0.74, phase: 3.5, thick: 7 },
+    ];
+
+    for (const cfg of configs) {
+      const baseY = GAME_HEIGHT * cfg.yFrac;
+      const wave = Math.sin(t * 0.8 + cfg.phase) * 6;
+
+      // Left tentacle
+      const leftBaseX = -25;
+      let leftGripX: number;
+      if (!this.curtainTriggered) {
+        // Idle peek — tips barely visible, wiggling
+        leftGripX = 8 + Math.sin(t * 1.2 + cfg.phase) * 3;
+      } else {
+        // Grip the curtain inner edge and pull it
+        leftGripX = halfW - openAmount + 4;
+      }
+      this.drawTentacle(
+        ctx, t, leftBaseX, baseY, leftGripX, baseY + wave,
+        cfg.thick, cfg.phase, false,
+      );
+
+      // Right tentacle (mirror)
+      const rightBaseX = GAME_WIDTH + 25;
+      let rightGripX: number;
+      if (!this.curtainTriggered) {
+        rightGripX = GAME_WIDTH - 8 - Math.sin(t * 1.2 + cfg.phase) * 3;
+      } else {
+        rightGripX = halfW + openAmount - 4;
+      }
+      this.drawTentacle(
+        ctx, t, rightBaseX, baseY, rightGripX, baseY + wave,
+        cfg.thick, cfg.phase, true,
+      );
+    }
+  }
+
+  private drawTentacle(
+    ctx: CanvasRenderingContext2D,
+    t: number,
+    baseX: number,
+    baseY: number,
+    gripX: number,
+    gripY: number,
+    thickness: number,
+    phase: number,
+    isRight: boolean,
+  ): void {
+    const dx = gripX - baseX;
+    const wave1 = Math.sin(t * 1.5 + phase) * 12;
+    const wave2 = Math.sin(t * 1.8 + phase + 1.2) * 10;
+
+    const cp1x = baseX + dx * 0.35;
+    const cp1y = baseY - 20 + wave1;
+    const cp2x = baseX + dx * 0.65;
+    const cp2y = baseY + 15 + wave2;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+
+    // Draw tapered tentacle body via segmented strokes
+    const SEGS = 12;
+    for (let i = 0; i < SEGS; i++) {
+      const t1 = i / SEGS;
+      const t2 = (i + 1) / SEGS;
+      const p1 = cubicBezierPoint(baseX, baseY, cp1x, cp1y, cp2x, cp2y, gripX, gripY, t1);
+      const p2 = cubicBezierPoint(baseX, baseY, cp1x, cp1y, cp2x, cp2y, gripX, gripY, t2);
+
+      const w = thickness * (1 - t2 * 0.7);
+
+      // Dark outline
+      ctx.strokeStyle = '#0e3a2f';
+      ctx.lineWidth = w + 2;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+
+      // Fleshy body
+      ctx.strokeStyle = '#1a6b55';
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+
+      // Specular highlight
+      ctx.strokeStyle = 'rgba(60,180,130,0.35)';
+      ctx.lineWidth = w * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y - w * 0.15);
+      ctx.lineTo(p2.x, p2.y - w * 0.15);
+      ctx.stroke();
     }
 
-    // Compass accent in bottom corner
-    const compassAlpha = this.scrollDone ? 0.6 : 0.2;
-    ctx.globalAlpha = compassAlpha;
-    ctx.strokeStyle = TOKENS.colorCyan400;
-    ctx.lineWidth = 1;
+    // Suckers along inner side
+    const sign = isRight ? -1 : 1;
+    for (let i = 2; i < SEGS; i += 2) {
+      const st = i / SEGS;
+      const p = cubicBezierPoint(baseX, baseY, cp1x, cp1y, cp2x, cp2y, gripX, gripY, st);
+      const w = thickness * (1 - st * 0.7);
+      const suckerR = w * 0.22;
+      if (suckerR < 0.8) continue;
+
+      const ox = sign * w * 0.3;
+      // Outer ring
+      ctx.fillStyle = '#d4b8be';
+      ctx.beginPath();
+      ctx.arc(p.x + ox, p.y, suckerR, 0, Math.PI * 2);
+      ctx.fill();
+      // Dark centre
+      ctx.fillStyle = '#9a7078';
+      ctx.beginPath();
+      ctx.arc(p.x + ox, p.y, suckerR * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Curled tip
+    const tipP = cubicBezierPoint(baseX, baseY, cp1x, cp1y, cp2x, cp2y, gripX, gripY, 1);
+    const curlDir = isRight ? 1 : -1;
+    ctx.strokeStyle = '#1a6b55';
+    ctx.lineWidth = thickness * 0.2;
     ctx.beginPath();
-    ctx.arc(GAME_WIDTH / 2, scrollY + scrollH + 54, 10, 0, Math.PI * 2);
+    ctx.arc(
+      tipP.x + curlDir * 3, tipP.y, 3.5,
+      Math.PI * (isRight ? 0.5 : 1), Math.PI * (isRight ? 2 : 2.5),
+    );
     ctx.stroke();
-    // North pointer
-    ctx.fillStyle = TOKENS.colorYellow400;
-    ctx.beginPath();
-    ctx.moveTo(GAME_WIDTH / 2, scrollY + scrollH + 46);
-    ctx.lineTo(GAME_WIDTH / 2 - 2, scrollY + scrollH + 54);
-    ctx.lineTo(GAME_WIDTH / 2 + 2, scrollY + scrollH + 54);
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha = 1;
+
+    ctx.restore();
   }
 
   private drawScrollRoll(ctx: CanvasRenderingContext2D, x: number, y: number, w: number): void {
@@ -408,6 +563,25 @@ export class IntroScene implements Scene {
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
+}
+
+/** Evaluate a cubic Bézier at parameter t (0-1). */
+function cubicBezierPoint(
+  x0: number, y0: number,
+  x1: number, y1: number,
+  x2: number, y2: number,
+  x3: number, y3: number,
+  t: number,
+): { x: number; y: number } {
+  const mt = 1 - t;
+  const mt2 = mt * mt;
+  const mt3 = mt2 * mt;
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return {
+    x: mt3 * x0 + 3 * mt2 * t * x1 + 3 * mt * t2 * x2 + t3 * x3,
+    y: mt3 * y0 + 3 * mt2 * t * y1 + 3 * mt * t2 * y2 + t3 * y3,
+  };
 }
 
 function roundRectFill(

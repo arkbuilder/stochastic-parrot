@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { IntroScene } from '../../../src/scenes/intro-scene';
+import { IntroScene, SAIL_BUTTON_RECT } from '../../../src/scenes/intro-scene';
 import { AudioEvent } from '../../../src/audio/types';
+
+/** A tap coordinate inside the SET SAIL button rect */
+const BUTTON_TAP = {
+  x: SAIL_BUTTON_RECT.x + SAIL_BUTTON_RECT.w / 2,
+  y: SAIL_BUTTON_RECT.y + SAIL_BUTTON_RECT.h / 2,
+};
 
 function makeCtx(): CanvasRenderingContext2D {
   return {
@@ -66,7 +72,7 @@ describe('IntroScene', () => {
     expect(onDone).not.toHaveBeenCalled();
   });
 
-  it('typewriter completes and calls onDone on tap', () => {
+  it('typewriter completes and calls onDone on SET SAIL button tap', () => {
     const onDone = vi.fn();
     const audioPlay = vi.fn();
     const scene = new IntroScene(onDone, audioPlay);
@@ -84,9 +90,101 @@ describe('IntroScene', () => {
       scene.update(0.016, []);
     }
 
-    // Text should be done, tap to exit
-    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    // Text should be done — tap SET SAIL button to exit
+    scene.update(0.016, [{ type: 'primary', ...BUTTON_TAP }]);
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT call onDone when tapping outside the SET SAIL button', () => {
+    const onDone = vi.fn();
+    const scene = new IntroScene(onDone);
+    scene.enter({ now: () => 0 });
+
+    // Open curtains
+    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    for (let i = 0; i < 80; i++) {
+      scene.update(0.016, []);
+    }
+
+    // Fast-forward typewriter
+    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    for (let i = 0; i < 300; i++) {
+      scene.update(0.016, []);
+    }
+
+    // Tap outside the button rect (above it)
+    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('does NOT auto-advance after elapsed time (regression)', () => {
+    const onDone = vi.fn();
+    const scene = new IntroScene(onDone);
+    scene.enter({ now: () => 0 });
+
+    // Open curtains
+    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    for (let i = 0; i < 80; i++) {
+      scene.update(0.016, []);
+    }
+
+    // Fast-forward typewriter
+    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    for (let i = 0; i < 300; i++) {
+      scene.update(0.016, []);
+    }
+
+    // Wait 10 seconds with no input — should NOT auto-exit
+    for (let i = 0; i < 600; i++) {
+      scene.update(0.016, []);
+    }
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('keyboard Enter (NaN x) triggers SET SAIL exit', () => {
+    const onDone = vi.fn();
+    const scene = new IntroScene(onDone);
+    scene.enter({ now: () => 0 });
+
+    // Open curtains
+    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    for (let i = 0; i < 80; i++) {
+      scene.update(0.016, []);
+    }
+
+    // Fast-forward typewriter
+    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    for (let i = 0; i < 300; i++) {
+      scene.update(0.016, []);
+    }
+
+    // Keyboard enter action (NaN coords)
+    scene.update(0.016, [{ type: 'primary', x: NaN, y: NaN }]);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls stopNarration when exiting via SET SAIL', () => {
+    const onDone = vi.fn();
+    const stopNarration = vi.fn();
+    const scene = new IntroScene(onDone, undefined, undefined, stopNarration);
+    scene.enter({ now: () => 0 });
+
+    // Open curtains
+    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    for (let i = 0; i < 80; i++) {
+      scene.update(0.016, []);
+    }
+
+    // Fast-forward typewriter
+    scene.update(0.016, [{ type: 'primary', x: 120, y: 200 }]);
+    for (let i = 0; i < 300; i++) {
+      scene.update(0.016, []);
+    }
+
+    // Tap SET SAIL
+    scene.update(0.016, [{ type: 'primary', ...BUTTON_TAP }]);
+    expect(stopNarration).toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalled();
   });
 
   it('plays typewriter tick sounds during scroll phase', () => {

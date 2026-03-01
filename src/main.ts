@@ -28,6 +28,17 @@ import { ISLAND_UPGRADE_REWARDS } from './data/progression';
 import { UPGRADES } from './data/upgrades';
 import { gradeFromRatio } from './systems/scoring-system';
 import type { EncounterStartData, OverworldProgress, RewardData } from './scenes/flow-types';
+import { CinematicScene } from './cinematics/cinematic-scene';
+import { ISLAND_CINEMATICS } from './cinematics/island-cinematics';
+import { GAME_OVER_CINEMATIC } from './cinematics/game-over-cinematics';
+import { BestiaryScene } from './scenes/bestiary-scene';
+import { ConceptMinigameScene } from './scenes/concept-minigame-scene';
+import { getConceptMinigame } from './data/concept-minigames';
+import { listDlcPacks } from './dlc/dlc-registry';
+import { IntroScene } from './scenes/intro-scene';
+import { DlcCreditsScene } from './scenes/dlc-credits-scene';
+import { CreditsMusic } from './audio/credits-music';
+import { AudioEvent } from './audio/types';
 import type { AccessibilitySettings, ConceptMasteryState, MasteryLevel, SessionSave } from './persistence/types';
 
 type DebugController = {
@@ -43,6 +54,19 @@ type IslandResult = {
   accuracyPct: number;
   expertBonus: boolean;
 };
+
+/**
+ * Look up a minigame by concept ID — searches base pack then all registered DLC packs.
+ */
+function findMinigame(conceptId: string) {
+  const base = getConceptMinigame(conceptId);
+  if (base) return base;
+  for (const pack of listDlcPacks()) {
+    const found = pack.content.minigames.find((mg) => mg.conceptId === conceptId);
+    if (found) return found;
+  }
+  return undefined;
+}
 
 const PLAYER_ID = 'player_local';
 const MAIN_ISLAND_IDS = ['island_01', 'island_02', 'island_03', 'island_04', 'island_05'];
@@ -278,7 +302,16 @@ function goToOverworld(fromIslandId?: string): void {
     telemetry,
     audio: audioManager,
     onIslandArrive: (islandId) => {
-      startIsland(islandId);
+      const cinematics = ISLAND_CINEMATICS[islandId];
+      if (cinematics) {
+        const introScene = new CinematicScene(cinematics.intro, () => {
+          sceneManager.pop();
+          startIsland(islandId);
+        });
+        sceneManager.push(introScene);
+      } else {
+        startIsland(islandId);
+      }
     },
   });
 
@@ -325,6 +358,23 @@ function mapGradeToAccuracy(grade: 'S' | 'A' | 'B' | 'C' | 'D', expertBonus: boo
     return 58;
   }
   return 45;
+}
+
+function buildPerformanceSnapshot(): import('./scenes/island-scene').PerformanceSnapshot {
+  const results = Array.from(progressState.islandResults.values());
+  if (results.length === 0) {
+    return { averageGrade: null, completedCount: 0, lastExpertBonus: false };
+  }
+  const gradeOrder: Record<string, number> = { S: 5, A: 4, B: 3, C: 2, D: 1 };
+  const gradeAvgNum = results.reduce((acc, r) => acc + (gradeOrder[r.grade] ?? 3), 0) / results.length;
+  let averageGrade: 'S' | 'A' | 'B' | 'C' | 'D';
+  if (gradeAvgNum >= 4.5) averageGrade = 'S';
+  else if (gradeAvgNum >= 3.5) averageGrade = 'A';
+  else if (gradeAvgNum >= 2.5) averageGrade = 'B';
+  else if (gradeAvgNum >= 1.5) averageGrade = 'C';
+  else averageGrade = 'D';
+  const last = results[results.length - 1]!;
+  return { averageGrade, completedCount: results.length, lastExpertBonus: last.expertBonus };
 }
 
 function getAggregateStats(): { totalScore: number; totalTimeMs: number; accuracyPct: number; totalGrade: 'S' | 'A' | 'B' | 'C' | 'D' } {
@@ -506,7 +556,7 @@ function buildSquidEncounterData(base: EncounterStartData): EncounterStartData {
     (concept) =>
       MAIN_ISLAND_IDS.includes(concept.islandId) &&
       (progressState.completedIslands.has(concept.islandId) || concept.islandId === base.islandId),
-  ).slice(0, 8);
+  ).slice(0, 5);
 
   const conceptOriginIsland: Record<string, string> = {};
   for (const concept of sourceConcepts) {
@@ -517,11 +567,17 @@ function buildSquidEncounterData(base: EncounterStartData): EncounterStartData {
     (islandId) => progressState.completedIslands.has(islandId) || islandId === base.islandId,
   );
 
-  const spacing = islandIds.length > 1 ? 168 / (islandIds.length - 1) : 0;
+  // Layout islands in an arc pattern for better visual spread
+  const islandPositions: Array<{ x: number; y: number }> = [
+    { x: 40, y: 180 },   // left-top
+    { x: 120, y: 155 },  // center-top
+    { x: 200, y: 180 },  // right-top
+    { x: 70, y: 240 },   // left-bottom
+    { x: 170, y: 240 },  // right-bottom
+  ];
   const tentacleLandmarks = islandIds.map((islandId, index) => {
-    const x = Math.floor(36 + spacing * index);
-    const y = 220;
-    return createLandmark(islandId, islandId, x, y);
+    const pos = islandPositions[index % islandPositions.length]!;
+    return createLandmark(islandId, islandId, pos.x, pos.y);
   });
 
   return {
@@ -544,6 +600,40 @@ function shouldGoToLeaderboardAfterReward(reward: RewardData): boolean {
   }
 
   return false;
+}
+
+function isDlcRocketComplete(reward: RewardData): boolean {
+  return reward.islandId === 'dlc_krakens_void';
+}
+
+function launchDlcCredits(): void {
+  let creditsMusic: CreditsMusic | null = null;
+
+  const creditsScene = new DlcCreditsScene({
+    onDone: () => {
+      creditsMusic?.stop();
+      creditsMusic = null;
+      sceneManager.pop();
+      goToLeaderboard();
+    },
+    onEnter: () => {
+      // Start the special credits music via the AudioManager's context
+      try {
+        void audioManager.resume();
+        const ctx = (audioManager as unknown as { context: AudioContext | null }).context;
+        const dest = (audioManager as unknown as { musicGain: GainNode | null }).musicGain;
+        if (ctx && dest) {
+          creditsMusic = new CreditsMusic(ctx, dest);
+          creditsMusic.start();
+        }
+      } catch {
+        // Audio unavailable — credits still work without music
+      }
+    },
+  });
+
+  sceneManager.push(creditsScene);
+  (window as Window & { __dr_scene?: string }).__dr_scene = 'dlc_credits';
 }
 
 function buildEncounterFromIslandConfig(islandId: string): EncounterStartData | null {
@@ -611,11 +701,38 @@ function resumeSavedSession(): void {
           void telemetry.flush();
 
           if (shouldGoToLeaderboardAfterReward(reward)) {
-            goToLeaderboard();
+            const gameOverScene = new CinematicScene(GAME_OVER_CINEMATIC, () => {
+              sceneManager.pop();
+              goToLeaderboard();
+            });
+            sceneManager.push(gameOverScene);
             return;
           }
 
-          goToOverworld(reward.islandId);
+          if (isDlcRocketComplete(reward)) {
+            const outroData = ISLAND_CINEMATICS[reward.islandId];
+            if (outroData) {
+              const outroScene = new CinematicScene(outroData.outro, () => {
+                sceneManager.pop();
+                launchDlcCredits();
+              });
+              sceneManager.push(outroScene);
+            } else {
+              launchDlcCredits();
+            }
+            return;
+          }
+
+          const outroData = ISLAND_CINEMATICS[reward.islandId];
+          if (outroData) {
+            const outroScene = new CinematicScene(outroData.outro, () => {
+              sceneManager.pop();
+              goToOverworld(reward.islandId);
+            });
+            sceneManager.push(outroScene);
+          } else {
+            goToOverworld(reward.islandId);
+          }
         },
       });
 
@@ -639,6 +756,7 @@ function startIsland(islandId: string): void {
     islandId,
     telemetry,
     audio: audioManager,
+    performance: buildPerformanceSnapshot(),
     onPause: () => {
       openPauseMenu(() => {
         saveSessionState(null);
@@ -647,6 +765,46 @@ function startIsland(islandId: string): void {
     },
     onConceptPlaced: (conceptId) => setMasteryLevel(conceptId, 'placed'),
     onConceptDiscovered: (conceptId) => setMasteryLevel(conceptId, 'discovered'),
+    onMinigameLaunch: (conceptId, landmarkId, onComplete) => {
+      const minigame = findMinigame(conceptId);
+      if (!minigame) {
+        // No minigame data for this concept — unlock immediately
+        onComplete();
+        return;
+      }
+      const minigameScene = new ConceptMinigameScene({
+        minigame,
+        landmarkId,
+        audio: audioManager,
+        onComplete: () => {
+          sceneManager.pop();
+          onComplete();
+        },
+      });
+      sceneManager.push(minigameScene);
+    },
+    onEnemyQuiz: (conceptId, landmarkId, onResult) => {
+      const minigame = findMinigame(conceptId);
+      if (!minigame) {
+        // No quiz data — count as correct to avoid softlock
+        onResult(true);
+        return;
+      }
+      const quizScene = new ConceptMinigameScene({
+        minigame,
+        landmarkId,
+        audio: audioManager,
+        onComplete: () => {
+          sceneManager.pop();
+          onResult(true);
+        },
+        onFail: () => {
+          sceneManager.pop();
+          onResult(false);
+        },
+      });
+      sceneManager.push(quizScene);
+    },
     onThreatTriggered: (encounterData) => {
       saveSessionState({ islandId, phase: 'recall', timestampMs: Date.now() });
       const withUpgrades: EncounterStartData = {
@@ -679,11 +837,38 @@ function startIsland(islandId: string): void {
               void telemetry.flush();
 
               if (shouldGoToLeaderboardAfterReward(reward)) {
-                goToLeaderboard();
+                const gameOverScene = new CinematicScene(GAME_OVER_CINEMATIC, () => {
+                  sceneManager.pop();
+                  goToLeaderboard();
+                });
+                sceneManager.push(gameOverScene);
                 return;
               }
 
-              goToOverworld(reward.islandId);
+              if (isDlcRocketComplete(reward)) {
+                const outroData = ISLAND_CINEMATICS[reward.islandId];
+                if (outroData) {
+                  const outroScene = new CinematicScene(outroData.outro, () => {
+                    sceneManager.pop();
+                    launchDlcCredits();
+                  });
+                  sceneManager.push(outroScene);
+                } else {
+                  launchDlcCredits();
+                }
+                return;
+              }
+
+              const outroData = ISLAND_CINEMATICS[reward.islandId];
+              if (outroData) {
+                const outroScene = new CinematicScene(outroData.outro, () => {
+                  sceneManager.pop();
+                  goToOverworld(reward.islandId);
+                });
+                sceneManager.push(outroScene);
+              } else {
+                goToOverworld(reward.islandId);
+              }
             },
           });
           sceneManager.replace(rewardScene);
@@ -723,11 +908,40 @@ const menuScene = new MenuScene(
     resumeSavedSession();
   },
   () => resumableSession !== null,
+  () => {
+    goToBestiary();
+  },
+);
+
+function goToBestiary(): void {
+  const bestiaryScene = new BestiaryScene(() => {
+    goToMenu();
+  });
+  sceneManager.replace(bestiaryScene);
+  (window as Window & { __dr_scene?: string }).__dr_scene = 'bestiary';
+}
+
+const INTRO_SEEN_KEY = 'dr_intro_seen';
+
+const introScene = new IntroScene(
+  () => {
+    try { localStorage.setItem(INTRO_SEEN_KEY, '1'); } catch { /* ignore */ }
+    goToMenu();
+  },
+  (event: AudioEvent) => {
+    audioManager.resume().catch(() => {});
+    audioManager.play(event);
+  },
 );
 
 const bootScene = new BootScene(() => {
   transitionState('menu', 'boot_complete');
-  goToMenu();
+  const seenIntro = (() => { try { return localStorage.getItem(INTRO_SEEN_KEY) === '1'; } catch { return false; } })();
+  if (seenIntro) {
+    goToMenu();
+  } else {
+    sceneManager.replace(introScene);
+  }
 });
 
 sceneManager.push(bootScene);

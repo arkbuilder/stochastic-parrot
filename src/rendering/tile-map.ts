@@ -21,6 +21,11 @@ const TILE_PALETTES: Record<string, TilePalette> = {
   G: { base: '#2d6a4f', light: '#40916c', dark: '#1b4332', detail: '#52b788' },
   D: { base: '#8b6f47', light: '#a68b5b', dark: '#6d5535', detail: '#926e3e' },
   C: { base: '#6d4c41', light: '#8d6e63', dark: '#4e342e', detail: '#5d4037' },
+  T: { base: '#1a6e8a', light: '#2890aa', dark: '#0e4f66', detail: '#44b8d4' },  // Tide pools
+  R: { base: '#5c5470', light: '#736b8a', dark: '#3d3655', detail: '#8e7faa' },  // Ruins stone
+  V: { base: '#3a2520', light: '#5c3a30', dark: '#251510', detail: '#e85d3a' },  // Volcanic rock
+  P: { base: '#2a5a6a', light: '#3a7a8a', dark: '#1a3a4a', detail: '#f472b6' },  // Reef pools
+  M: { base: '#1e5040', light: '#2d7058', dark: '#0e3828', detail: '#6ecc9a' },  // Mossy stone
 };
 
 /* Simple seeded hash for per-tile deterministic variation */
@@ -134,6 +139,87 @@ export class TileMap {
           ctx.beginPath();
           ctx.moveTo(drawX, drawY + ts / 2);
           ctx.lineTo(drawX + ts, drawY + ts / 2);
+          ctx.stroke();
+          ctx.lineWidth = 1;
+        } else if (tile === 'T') {
+          // Tide pools: animated shimmer + bubbles
+          const shimmer = Math.sin(t * 2.2 + x * 0.8 + y * 0.5) * 0.12 + 0.06;
+          ctx.fillStyle = `rgba(68,184,212,${shimmer.toFixed(3)})`;
+          ctx.fillRect(drawX + 1, drawY + 2, ts - 2, ts - 4);
+          if (hash < 80) {
+            const bubbleY = drawY + ((hash + t * 12) % ts);
+            ctx.fillStyle = 'rgba(200,240,255,0.35)';
+            ctx.beginPath();
+            ctx.arc(drawX + (hash % 7) + 2, bubbleY, 1, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (hash & 1) {
+            ctx.fillStyle = palette.detail;
+            ctx.fillRect(drawX + 3, drawY + 5, 1, 1);
+          }
+        } else if (tile === 'R') {
+          // Ruins stone: cracked flagstone pattern
+          ctx.strokeStyle = palette.dark;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(drawX + ts / 2, drawY);
+          ctx.lineTo(drawX + ts / 2 + (hash % 3) - 1, drawY + ts);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(drawX, drawY + ts / 2);
+          ctx.lineTo(drawX + ts, drawY + ts / 2 + (hash % 3) - 1);
+          ctx.stroke();
+          ctx.lineWidth = 1;
+          // Rune glow
+          if (hash > 200) {
+            const glow = Math.sin(t * 1.5 + hash) * 0.15 + 0.15;
+            ctx.fillStyle = `rgba(142,127,170,${glow.toFixed(3)})`;
+            ctx.fillRect(drawX + 3, drawY + 3, 2, 2);
+          }
+        } else if (tile === 'V') {
+          // Volcanic rock: ember glow + cracks
+          ctx.strokeStyle = palette.dark;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(drawX + (hash % 4), drawY + 2);
+          ctx.lineTo(drawX + ts - (hash % 5), drawY + ts - 1);
+          ctx.stroke();
+          ctx.lineWidth = 1;
+          // Ember glow in cracks
+          const ember = Math.sin(t * 1.8 + hash * 0.5) * 0.2 + 0.25;
+          ctx.fillStyle = `rgba(232,93,58,${ember.toFixed(3)})`;
+          if (hash & 1) ctx.fillRect(drawX + 2, drawY + 4, 2, 1);
+          if (hash & 2) ctx.fillRect(drawX + 5, drawY + 2, 1, 2);
+        } else if (tile === 'P') {
+          // Reef pools: water with coral specks
+          const poolShimmer = Math.sin(t * 1.6 + x * 0.6 + y * 0.9) * 0.08 + 0.04;
+          ctx.fillStyle = `rgba(58,122,138,${poolShimmer.toFixed(3)})`;
+          ctx.fillRect(drawX, drawY + 1, ts, ts - 2);
+          // Coral specks
+          const colors = ['#f472b6', '#fb923c', '#a78bfa'];
+          if (hash & 1) {
+            ctx.fillStyle = colors[hash % 3]!;
+            ctx.fillRect(drawX + 2, drawY + 5, 1, 1);
+          }
+          if (hash & 4) {
+            ctx.fillStyle = colors[(hash >> 2) % 3]!;
+            ctx.fillRect(drawX + 6, drawY + 2, 1, 1);
+          }
+        } else if (tile === 'M') {
+          // Mossy stone: stone base + green patches
+          ctx.fillStyle = palette.detail;
+          if (hash & 1) {
+            ctx.fillRect(drawX + 1, drawY + 1, 3, 2);
+          }
+          if (hash & 2) {
+            ctx.fillRect(drawX + 5, drawY + 5, 2, 2);
+          }
+          // Stone cracks
+          ctx.strokeStyle = palette.dark;
+          ctx.lineWidth = 0.4;
+          ctx.beginPath();
+          ctx.moveTo(drawX + 1, drawY + ts / 2);
+          ctx.lineTo(drawX + ts - 1, drawY + ts / 2 + 1);
           ctx.stroke();
           ctx.lineWidth = 1;
         }

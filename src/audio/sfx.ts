@@ -85,6 +85,14 @@ function getSfxConfig(event: AudioEvent): SfxConfig {
       return { freq: 880, duration: 0.15, type: 'square', arp: [784, 880] };
     case AudioEvent.NemoFootstep:
       return { freq: 330, duration: 0.06, type: 'square' };
+    case AudioEvent.CurtainOpen:
+      return { freq: 130, duration: 1.2, type: 'sine', arp: [130, 147, 165, 196, 220, 262, 330, 392] };
+    case AudioEvent.TypewriterTick:
+      return { freq: 1200, duration: 0.03, type: 'square' };
+    case AudioEvent.EnemyBurrow:
+      return { freq: 110, duration: 0.5, type: 'sawtooth', arp: [110, 147, 175, 220] };
+    case AudioEvent.FreezeBlast:
+      return { freq: 880, duration: 0.6, type: 'sine', arp: [880, 784, 659, 523, 440] };
     default:
       return { freq: 440, duration: 0.2, type: 'triangle' };
   }

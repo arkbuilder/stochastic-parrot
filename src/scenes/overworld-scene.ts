@@ -11,6 +11,8 @@ import {
 } from '../rendering/draw';
 import type { OverworldProgress } from './flow-types';
 import { OVERWORLD_NODES } from '../data/progression';
+import { createWeatherState, updateWeatherSystem, type WeatherState } from '../systems/weather-system';
+import { renderWeatherForeground } from '../rendering/weather';
 
 interface OverworldSceneDeps {
   progress: OverworldProgress;
@@ -33,6 +35,15 @@ export class OverworldScene implements Scene {
   private sailDurationMs = 12_000;
   private sightingShown = false;
   private elapsed = 0;
+
+  // Storm-sky lightning state
+  private lightningFlash = 0;          // brightness 0..1, decays fast
+  private lightningCooldown = 0;       // seconds until next bolt
+  private lightningBoltX = 120;        // x of current bolt
+  private lightningBoltSegments: { x1: number; y1: number; x2: number; y2: number }[] = [];
+
+  // Ambient ocean weather (visible during sailing for atmospheric rain/motes)
+  private overworldWeather: WeatherState = createWeatherState('storm');
 
   constructor(private readonly deps: OverworldSceneDeps) {}
 
@@ -59,6 +70,16 @@ export class OverworldScene implements Scene {
       const dtMs = dt * 1000;
       this.sailProgress = Math.min(1, this.sailProgress + dtMs / this.sailDurationMs);
 
+      // Storm lightning timing
+      this.lightningFlash = Math.max(0, this.lightningFlash - dt * 4.5);
+      this.lightningCooldown -= dt;
+      if (this.lightningCooldown <= 0) {
+        this.lightningFlash = 1;
+        this.lightningBoltX = 20 + Math.random() * (GAME_WIDTH - 40);
+        this.lightningBoltSegments = this.generateBolt(this.lightningBoltX);
+        this.lightningCooldown = 0.7 + Math.random() * 1.8;
+      }
+
       if (!this.sightingShown && this.sailProgress >= 0.46 && this.sailProgress <= 0.72) {
         this.sightingShown = true;
         this.emitSighting();
@@ -71,6 +92,9 @@ export class OverworldScene implements Scene {
         });
         this.deps.onIslandArrive(arrived);
       }
+
+      // Update ocean weather particles during sailing
+      updateWeatherSystem(this.overworldWeather, dt, 'storm');
       return;
     }
 
@@ -98,6 +122,8 @@ export class OverworldScene implements Scene {
       this.sailProgress = 0;
       this.phase = 'sailing';
       this.sightingShown = false;
+      this.lightningFlash = 0;
+      this.lightningCooldown = 0.3 + Math.random() * 0.5; // first bolt arrives quickly
 
       this.deps.telemetry.emit(TELEMETRY_EVENTS.sailingStarted, {
         from_node: this.sailFromNodeId,
@@ -114,6 +140,11 @@ export class OverworldScene implements Scene {
     drawSkyGradient(ctx, GAME_WIDTH, '#050d1a', '#11213c', HORIZON_Y);
     drawStars(ctx, GAME_WIDTH, HORIZON_Y, t, 30);
 
+    // Storm clouds & lightning while sailing
+    if (this.phase === 'sailing') {
+      this.renderStormSky(ctx, t);
+    }
+
     // Ocean fills the rest
     drawOceanGradient(ctx, GAME_WIDTH, HORIZON_Y, GAME_HEIGHT - HORIZON_Y, t);
 
@@ -126,6 +157,11 @@ export class OverworldScene implements Scene {
     // Ship on chart
     this.renderShip(ctx, t);
 
+    // Ocean weather particles (rain/drops during sailing)
+    if (this.phase === 'sailing') {
+      renderWeatherForeground(ctx, this.overworldWeather, GAME_WIDTH, GAME_HEIGHT);
+    }
+
     // Bottom HUD panel
     this.renderBottomHud(ctx, t);
 
@@ -133,31 +169,103 @@ export class OverworldScene implements Scene {
     drawVignette(ctx, GAME_WIDTH, GAME_HEIGHT, 0.35);
   }
 
+  /** Dark rolling clouds with periodic lightning flashes during sailing */
+  private renderStormSky(ctx: CanvasRenderingContext2D, t: number): void {
+    // ── Dark cloud bank ──
+    // Multiple overlapping cloud blobs that drift slowly
+    const cloudBaseY = HORIZON_Y - 28;
+    const cloudAlpha = 0.15 + this.sailProgress * 0.25;  // builds as we sail
+    for (let i = 0; i < 7; i++) {
+      const cx = (35 + i * 34 + Math.sin(t * 0.3 + i * 1.6) * 14) % (GAME_WIDTH + 30) - 15;
+      const cy = cloudBaseY - 6 + Math.sin(t * 0.5 + i * 2.3) * 8;
+      const rx = 22 + (i % 3) * 6;
+      const ry = 9 + (i % 2) * 4;
+      ctx.fillStyle = rgba('#1e293b', cloudAlpha + (i % 2) * 0.06);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Lower cloud strip just above the horizon
+    for (let i = 0; i < 5; i++) {
+      const cx = (20 + i * 52 + Math.sin(t * 0.4 + i * 3.1) * 10) % (GAME_WIDTH + 20) - 10;
+      ctx.fillStyle = rgba('#0f172a', cloudAlpha * 0.8);
+      ctx.beginPath();
+      ctx.ellipse(cx, HORIZON_Y - 6, 28, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── Lightning flash glow ──
+    if (this.lightningFlash > 0.05) {
+      // Full-sky white flash (subtle)
+      ctx.fillStyle = rgba('#e0f2fe', this.lightningFlash * 0.12);
+      ctx.fillRect(0, 0, GAME_WIDTH, HORIZON_Y);
+
+      // Bolt segments
+      ctx.strokeStyle = rgba('#f0f9ff', this.lightningFlash * 0.9);
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#7dd3fc';
+      ctx.shadowBlur = this.lightningFlash * 6;
+      ctx.beginPath();
+      for (const seg of this.lightningBoltSegments) {
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 1;
+
+      // Bright core (thinner, brighter)
+      if (this.lightningFlash > 0.3) {
+        ctx.strokeStyle = rgba('#ffffff', this.lightningFlash * 0.7);
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        for (const seg of this.lightningBoltSegments) {
+          ctx.moveTo(seg.x1, seg.y1);
+          ctx.lineTo(seg.x2, seg.y2);
+        }
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+    }
+  }
+
+  /** Generate a jagged bolt from the top of the sky down to the cloud bank */
+  private generateBolt(x: number): { x1: number; y1: number; x2: number; y2: number }[] {
+    const segs: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    let cx = x;
+    let cy = 2;
+    const endY = HORIZON_Y - 10;
+    while (cy < endY) {
+      const nx = cx + (Math.random() - 0.5) * 18;
+      const ny = Math.min(endY, cy + 6 + Math.random() * 10);
+      segs.push({ x1: cx, y1: cy, x2: nx, y2: ny });
+      // Occasional branch
+      if (Math.random() < 0.3) {
+        const bx = nx + (Math.random() - 0.5) * 14;
+        const by = ny + 4 + Math.random() * 8;
+        segs.push({ x1: nx, y1: ny, x2: bx, y2: Math.min(endY, by) });
+      }
+      cx = nx;
+      cy = ny;
+    }
+    return segs;
+  }
+
   private renderHorizon(ctx: CanvasRenderingContext2D, t: number): void {
     // Horizon line glow
     ctx.fillStyle = rgba('#1e5f8a', 0.4);
     ctx.fillRect(0, HORIZON_Y - 2, GAME_WIDTH, 4);
 
-    if (this.phase === 'sailing' && this.sailProgress >= 0.45) {
-      if (this.deps.progress.completedIslands.includes('island_04')) {
-        // Kraken silhouette
-        ctx.fillStyle = rgba('#ec4899', 0.6);
-        ctx.beginPath();
-        ctx.arc(196, 40, 12, 0, Math.PI * 2);
-        ctx.fill();
-        // Tentacles
-        for (let i = 0; i < 3; i++) {
-          const tx = 180 + i * 12;
-          const wave = Math.sin(t * 3 + i) * 4;
-          ctx.strokeStyle = rgba('#ec4899', 0.4);
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(tx, 52);
-          ctx.quadraticCurveTo(tx + wave, 64, tx - 4, HORIZON_Y);
-          ctx.stroke();
-        }
-        ctx.lineWidth = 1;
-      } else if (this.deps.progress.completedIslands.includes('island_02')) {
+    // Kraken emergence — phased puppeteered animation starting early
+    if (this.phase === 'sailing' && this.sailProgress >= 0.25 &&
+        this.deps.progress.completedIslands.includes('island_04')) {
+      this.renderKrakenEmergence(ctx, t);
+    }
+
+    // Other horizon sightings (non-kraken)
+    if (this.phase === 'sailing' && this.sailProgress >= 0.45 &&
+        !this.deps.progress.completedIslands.includes('island_04')) {
+      if (this.deps.progress.completedIslands.includes('island_02')) {
         // Ghost ship
         ctx.fillStyle = rgba('#ef4444', 0.5);
         roundRect(ctx, 178, 30, 36, 14, 3);
@@ -179,6 +287,117 @@ export class OverworldScene implements Scene {
           ctx.arc(cx, 34 + i * 4, 14 - i * 2, 0, Math.PI * 2);
           ctx.fill();
         }
+      }
+    }
+  }
+
+  /** Kraken emerges from the waterline in phases: bubbles → tentacles → head → full presence */
+  private renderKrakenEmergence(ctx: CanvasRenderingContext2D, t: number): void {
+    const krakenX = 196;
+    // Normalize: 0 at sailProgress 0.25, 1 at sailProgress 0.75
+    const kp = Math.min(1, Math.max(0, (this.sailProgress - 0.25) / 0.50));
+
+    // ── Phase 1: Bubbles & water disturbance (kp 0.0+) ──
+    const bubbleAlpha = Math.min(0.5, kp * 0.7);
+    ctx.fillStyle = rgba('#67e8f9', bubbleAlpha * 0.45);
+    for (let b = 0; b < 6; b++) {
+      const bx = krakenX - 16 + b * 6.5 + Math.sin(t * 4.5 + b * 1.7) * 3;
+      const by = HORIZON_Y - 2 - Math.abs(Math.sin(t * 3.2 + b * 2.1)) * 8 * kp;
+      const br = 1 + Math.sin(t * 5 + b) * 0.5;
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── Phase 2: Tentacles breach the surface (kp 0.15+) ──
+    if (kp > 0.15) {
+      const tentacleGrowth = Math.min(1, (kp - 0.15) / 0.45);
+      const tentacleCount = 5;
+      for (let i = 0; i < tentacleCount; i++) {
+        const tx = krakenX - 16 + i * 8;
+        const maxH = 12 + i % 2 * 8; // alternate short/tall
+        const tentacleH = maxH * tentacleGrowth;
+        const sway = Math.sin(t * 2.5 + i * 1.2) * (3 + tentacleGrowth * 5);
+        const tipSway = Math.sin(t * 4 + i * 0.8) * 2;
+        const alpha = 0.25 + tentacleGrowth * 0.4;
+
+        ctx.strokeStyle = rgba('#ec4899', alpha);
+        ctx.lineWidth = 1.5 + tentacleGrowth * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(tx, HORIZON_Y);
+        ctx.quadraticCurveTo(
+          tx + sway, HORIZON_Y - tentacleH * 0.55,
+          tx + tipSway, HORIZON_Y - tentacleH,
+        );
+        ctx.stroke();
+
+        // Tentacle tip curls once sufficiently risen
+        if (tentacleGrowth > 0.5) {
+          const curlAlpha = (tentacleGrowth - 0.5) * 2 * alpha;
+          ctx.strokeStyle = rgba('#f472b6', curlAlpha);
+          ctx.lineWidth = 1;
+          const tipX = tx + tipSway;
+          const tipY = HORIZON_Y - tentacleH;
+          ctx.beginPath();
+          ctx.arc(tipX + (i % 2 === 0 ? 2 : -2), tipY, 2, Math.PI * 0.5, Math.PI * 1.5);
+          ctx.stroke();
+        }
+      }
+      ctx.lineWidth = 1;
+    }
+
+    // ── Phase 3: Head / body breaches (kp 0.45+) ──
+    if (kp > 0.45) {
+      const headRise = Math.min(1, (kp - 0.45) / 0.35);
+      const headY = HORIZON_Y - 6 - headRise * 32;
+      const headR = 7 + headRise * 7;
+      const bodyAlpha = 0.25 + headRise * 0.4;
+
+      // Body dome
+      ctx.fillStyle = rgba('#ec4899', bodyAlpha);
+      ctx.beginPath();
+      ctx.ellipse(krakenX, headY + headR * 0.3, headR, headR * 1.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Darker mantle ridge
+      ctx.fillStyle = rgba('#be185d', bodyAlpha * 0.5);
+      ctx.beginPath();
+      ctx.ellipse(krakenX, headY, headR * 0.75, headR * 0.5, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+
+      // ── Phase 4: Glowing eyes (kp 0.65+) ──
+      if (kp > 0.65) {
+        const eyeFade = Math.min(1, (kp - 0.65) / 0.2);
+        const eyePulse = 0.7 + Math.sin(t * 4) * 0.3;
+
+        // Outer glow
+        ctx.fillStyle = rgba('#fbbf24', eyeFade * eyePulse * 0.25);
+        ctx.beginPath();
+        ctx.arc(krakenX - 5, headY + 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(krakenX + 5, headY + 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bright pupils
+        ctx.fillStyle = rgba('#facc15', eyeFade * eyePulse);
+        ctx.beginPath();
+        ctx.arc(krakenX - 5, headY + 2, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(krakenX + 5, headY + 2, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ── Water splash spray at waterline ──
+    if (kp > 0.3) {
+      const splashI = Math.min(1, (kp - 0.3) / 0.3);
+      ctx.fillStyle = rgba('#67e8f9', 0.12 + splashI * 0.18);
+      for (let s = 0; s < 5; s++) {
+        const sx = krakenX - 14 + s * 7 + Math.sin(t * 5.5 + s * 1.5) * 2;
+        const splashH = 2 + Math.abs(Math.sin(t * 6 + s * 2)) * 5 * splashI;
+        ctx.fillRect(sx - 0.5, HORIZON_Y - splashH, 1, splashH);
       }
     }
   }
@@ -310,6 +529,29 @@ export class OverworldScene implements Scene {
     const hasLantern = this.deps.progress.shipUpgrades.includes('ghostlight_lantern');
 
     drawShip(ctx, shipPoint.x, shipPoint.y, t, hasMast, hasLantern);
+
+    // Tiny player (Nemo) standing on the ship deck
+    const bob = Math.sin(t * 2) * 2;
+    const tilt = Math.sin(t * 1.5) * 0.08;
+    ctx.save();
+    ctx.translate(shipPoint.x, shipPoint.y + bob);
+    ctx.rotate(tilt);
+    // Micro body
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(-2, -8, 4, 5);
+    // Micro head
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(0, -10, 2, 0, Math.PI * 2);
+    ctx.fill();
+    // Micro bandana
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(-2, -12, 4, 1);
+    // Micro eyes
+    ctx.fillStyle = '#1e1b4b';
+    ctx.fillRect(-1, -10.5, 1, 1);
+    ctx.fillRect(1, -10.5, 1, 1);
+    ctx.restore();
 
     // Wake trail while sailing
     if (this.phase === 'sailing') {

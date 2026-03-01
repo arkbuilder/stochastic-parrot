@@ -1,6 +1,6 @@
 import type { Entity } from './types';
 
-export type PowerupKind = 'speed' | 'shield';
+export type PowerupKind = 'speed' | 'shield' | 'freeze' | 'reveal';
 
 export interface PowerupState {
   kind: PowerupKind;
@@ -18,6 +18,13 @@ export function createPowerup(
   x: number,
   y: number,
 ): PowerupEntity {
+  const durations: Record<PowerupKind, number> = {
+    speed: 5,
+    shield: 8,
+    freeze: 3,
+    reveal: 5,
+  };
+
   return {
     id,
     type: 'powerup',
@@ -30,7 +37,7 @@ export function createPowerup(
       collected: false,
       bobPhase: Math.random() * Math.PI * 2,
       animationTime: 0,
-      duration: kind === 'speed' ? 5 : 8,
+      duration: durations[kind],
     },
   };
 }

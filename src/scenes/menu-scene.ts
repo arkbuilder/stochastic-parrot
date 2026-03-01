@@ -5,7 +5,7 @@ import { drawButton, drawOceanGradient, drawSkyGradient, drawStars, drawShip, dr
 
 type Rect = { x: number; y: number; w: number; h: number };
 
-type MenuItem = 'resume' | 'start' | 'leaderboard';
+type MenuItem = 'resume' | 'start' | 'leaderboard' | 'bestiary';
 
 type MenuButton = {
   item: MenuItem;
@@ -29,9 +29,16 @@ const START_BUTTON: Rect = {
 
 const LEADERBOARD_BUTTON: Rect = {
   x: 48,
-  y: 326,
+  y: 322,
   w: 144,
-  h: 32,
+  h: 30,
+};
+
+const BESTIARY_BUTTON: Rect = {
+  x: 48,
+  y: 358,
+  w: 144,
+  h: 30,
 };
 
 export class MenuScene implements Scene {
@@ -43,6 +50,7 @@ export class MenuScene implements Scene {
     private readonly onLeaderboard: () => void,
     private readonly onResume?: () => void,
     private readonly hasResume?: () => boolean,
+    private readonly onBestiary?: () => void,
   ) {}
 
   enter(context: SceneContext): void {
@@ -97,6 +105,11 @@ export class MenuScene implements Scene {
 
       if (selected.item === 'leaderboard') {
         this.onLeaderboard();
+        return;
+      }
+
+      if (selected.item === 'bestiary' && this.onBestiary) {
+        this.onBestiary();
         return;
       }
     }
@@ -163,6 +176,9 @@ export class MenuScene implements Scene {
 
     buttons.push({ item: 'start', label: 'NEW VOYAGE', rect: START_BUTTON });
     buttons.push({ item: 'leaderboard', label: 'LEADERBOARD', rect: LEADERBOARD_BUTTON });
+    if (this.onBestiary) {
+      buttons.push({ item: 'bestiary', label: 'BESTIARY', rect: BESTIARY_BUTTON });
+    }
     return buttons;
   }
 }

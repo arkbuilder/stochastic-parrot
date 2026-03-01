@@ -10,16 +10,28 @@ import { renderHud } from '../rendering/hud';
 import { ParticleSystem } from '../rendering/particles';
 import { TileMap, type TileMapLayout } from '../rendering/tile-map';
 import { TOKENS } from '../rendering/tokens';
-import { drawPlayer, drawParrot, drawLandmark, drawConceptCard, drawPulsingArrow, drawHintBubble, drawVignette, rgba, roundRect, drawEnemy, drawPowerup, drawStunEffect } from '../rendering/draw';
+import { drawPlayer, drawParrot, drawLandmark, drawConceptCard, drawPulsingArrow, drawHintBubble, drawVignette, rgba, roundRect, drawEnemy, drawPowerup, drawStunEffect, drawFreezeOverlay, drawRevealTrail, drawFlora } from '../rendering/draw';
 import { updateAnimationSystem } from '../systems/animation-system';
 import { type EncodeRuntimeState, updateEncodeSystem } from '../systems/encode-system';
 import { updateMovementSystem } from '../systems/movement-system';
+import { createWeatherState, updateWeatherSystem, type WeatherState } from '../systems/weather-system';
+import { renderWeatherBackground, renderWeatherForeground } from '../rendering/weather';
 import { AudioEvent } from '../audio/types';
 import type { AudioManager } from '../audio/audio-manager';
 import type { TelemetryClient } from '../telemetry/telemetry-client';
 import { TELEMETRY_EVENTS } from '../telemetry/events';
 import type { EncounterStartData } from './flow-types';
 import { distance } from '../utils/math';
+
+/** Snapshot of how well the player did on previous islands */
+export interface PerformanceSnapshot {
+  /** Average grade across completed islands: 'S'|'A'|'B'|'C'|'D', or null if first island */
+  averageGrade: 'S' | 'A' | 'B' | 'C' | 'D' | null;
+  /** Number of islands completed so far */
+  completedCount: number;
+  /** Whether the player earned expert bonus on the most recent island */
+  lastExpertBonus: boolean;
+}
 
 interface IslandSceneDeps {
   islandId: string;
@@ -31,6 +43,10 @@ interface IslandSceneDeps {
   onConceptDiscovered?: (conceptId: string) => void;
   /** Launch a minigame for a concept. Call onComplete() when done to unlock the card. */
   onMinigameLaunch?: (conceptId: string, landmarkId: string, onComplete: () => void) => void;
+  /** Launch a pop quiz when player touches an enemy. correct→true = enemy dies, false = stun */
+  onEnemyQuiz?: (conceptId: string, landmarkId: string, onResult: (correct: boolean) => void) => void;
+  /** Previous island performance for adaptive enemy spawning */
+  performance?: PerformanceSnapshot;
 }
 
 type IslandPhase = 'island_arrive' | 'exploring' | 'encoding' | 'threat_triggered';
@@ -48,6 +64,7 @@ export class IslandScene implements Scene {
   private readonly powerups: PowerupEntity[];
   private readonly particles = new ParticleSystem();
   private readonly encodeRuntime: EncodeRuntimeState = { heldCardId: null };
+  private readonly vegetationSprites: Array<{ x: number; y: number; kind: string; scale: number }>;
 
   private phase: IslandPhase = 'island_arrive';
   private nowMs = 0;
@@ -61,6 +78,13 @@ export class IslandScene implements Scene {
   private playerSpeedBoost = false;
   private speedBoostTimer = 0;
   private shieldTimer = 0;
+  private minigameActive = false;
+  private quizActive = false;
+  private quizEnemyId = '';
+  private freezeTimer = 0;
+  private revealTimer = 0;
+  private revealTargetPos: { x: number; y: number } | null = null;
+  private readonly weatherState: WeatherState;
 
   constructor(private readonly deps: IslandSceneDeps) {
     const island = ISLANDS.find((entry) => entry.id === deps.islandId);
@@ -69,6 +93,7 @@ export class IslandScene implements Scene {
     }
 
     this.island = island;
+    this.weatherState = createWeatherState(island.encounterType);
 
     this.landmarks = this.island.landmarks.map((landmark) =>
       createLandmark(landmark.id, landmark.conceptId, landmark.x, landmark.y),
@@ -99,6 +124,9 @@ export class IslandScene implements Scene {
 
     // Spawn powerups in accessible locations
     this.powerups = this.spawnPowerups();
+
+    // Generate decorative vegetation positions from island config
+    this.vegetationSprites = this.buildVegetationSprites();
   }
 
   enter(context: SceneContext): void {
@@ -114,6 +142,11 @@ export class IslandScene implements Scene {
     this.playerSpeedBoost = false;
     this.speedBoostTimer = 0;
     this.shieldTimer = 0;
+    this.quizActive = false;
+    this.quizEnemyId = '';
+    this.freezeTimer = 0;
+    this.revealTimer = 0;
+    this.revealTargetPos = null;
     void this.loadLayout();
 
     this.deps.telemetry.emit(TELEMETRY_EVENTS.onboardingStart, { island_id: this.island.id });
@@ -160,8 +193,10 @@ export class IslandScene implements Scene {
     // Update stun timer — player can't move or encode while stunned
     if (this.playerStunTimer > 0) {
       this.playerStunTimer = Math.max(0, this.playerStunTimer - dt);
-      // Still update enemies and powerups visually
-      for (const enemy of this.enemies) updateEnemy(enemy, dt);
+      // Still update enemies and powerups visually (unless frozen)
+      if (this.freezeTimer <= 0) {
+        for (const enemy of this.enemies) updateEnemy(enemy, dt, this.player.position);
+      }
       for (const pu of this.powerups) pu.state.animationTime += dt;
       updateAnimationSystem(this.player, this.parrot, this.landmarks, this.conceptCards, dt);
       this.particles.update(dt);
@@ -180,14 +215,31 @@ export class IslandScene implements Scene {
       this.shieldTimer -= dt;
       if (this.shieldTimer <= 0) this.playerShielded = false;
     }
+    // Update freeze timer
+    if (this.freezeTimer > 0) {
+      this.freezeTimer -= dt;
+    }
+    // Update reveal timer
+    if (this.revealTimer > 0) {
+      this.revealTimer -= dt;
+      if (this.revealTimer <= 0) this.revealTargetPos = null;
+    }
 
     updateMovementSystem(this.player, this.parrot, actions, dt);
     this.unlockConceptCardsByProximity();
 
     // Update enemies and check collisions
+    const frozen = this.freezeTimer > 0;
     for (const enemy of this.enemies) {
-      updateEnemy(enemy, dt);
-      if (enemy.state.stunCooldown <= 0 && this.checkCollision(this.player, enemy)) {
+      if (enemy.state.defeated) continue;
+      if (!frozen) {
+        updateEnemy(enemy, dt, this.player.position);
+      } else {
+        // Still advance animation time for visual feedback
+        enemy.state.animationTime += dt;
+      }
+
+      if (enemy.state.stunCooldown <= 0 && enemy.visible && this.checkCollision(this.player, enemy)) {
         if (this.playerShielded) {
           this.playerShielded = false;
           this.shieldTimer = 0;
@@ -195,10 +247,8 @@ export class IslandScene implements Scene {
           this.particles.emitSparkle(this.player.position.x, this.player.position.y - 8);
           this.deps.audio.play(AudioEvent.BitChirp);
         } else {
-          this.playerStunTimer = 1.0;
-          enemy.state.stunCooldown = 2;
-          this.deps.audio.play(AudioEvent.RecallIncorrect);
-          this.particles.emitSparkle(this.player.position.x, this.player.position.y);
+          // Enemy touch → pop quiz!
+          this.triggerEnemyQuiz(enemy);
         }
       }
     }
@@ -243,6 +293,7 @@ export class IslandScene implements Scene {
 
     updateAnimationSystem(this.player, this.parrot, this.landmarks, this.conceptCards, dt);
     this.particles.update(dt);
+    updateWeatherSystem(this.weatherState, dt, this.island.encounterType);
 
     if (this.conceptCards.every((card) => card.state.placed)) {
       this.triggerThreat();
@@ -252,6 +303,14 @@ export class IslandScene implements Scene {
   render(ctx: CanvasRenderingContext2D): void {
     const t = this.nowMs / 1000;
     this.tileMap.render(ctx, 0, 0, t);
+
+    // Draw island vegetation decorations
+    for (const veg of this.vegetationSprites) {
+      drawFlora(ctx, veg.x, veg.y, veg.kind, t, veg.scale);
+    }
+
+    // Weather background layer (fog banks, darkening, lightning flash)
+    renderWeatherBackground(ctx, this.weatherState, GAME_WIDTH, GAME_HEIGHT);
 
     // Draw landmarks with proper icons and glow
     for (const landmark of this.landmarks) {
@@ -293,7 +352,38 @@ export class IslandScene implements Scene {
 
     // Draw enemies
     for (const enemy of this.enemies) {
-      drawEnemy(ctx, enemy.position.x, enemy.position.y, enemy.state.kind, t);
+      if (enemy.state.defeated) continue;
+      const frozen = this.freezeTimer > 0;
+      if (frozen) {
+        // Icy tint on frozen enemies
+        ctx.globalAlpha = 0.6;
+      }
+      drawEnemy(ctx, enemy.position.x, enemy.position.y, enemy.state.kind, t,
+        enemy.state.burrowPhase, enemy.state.burrowTimer, enemy.state.spikesOut);
+      if (frozen) {
+        // Frost ring around frozen enemy
+        ctx.globalAlpha = 0.4;
+        ctx.strokeStyle = '#93c5fd';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(enemy.position.x, enemy.position.y, 9, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 1;
+      }
+    }
+
+    // Freeze overlay
+    if (this.freezeTimer > 0) {
+      const fadeAlpha = Math.min(1, this.freezeTimer / 0.5);
+      drawFreezeOverlay(ctx, GAME_WIDTH, GAME_HEIGHT, t, fadeAlpha);
+    }
+
+    // Reveal trail to next landmark
+    if (this.revealTimer > 0 && this.revealTargetPos) {
+      const fadeAlpha = Math.min(1, this.revealTimer / 0.5);
+      drawRevealTrail(ctx, this.player.position.x, this.player.position.y - 4,
+        this.revealTargetPos.x, this.revealTargetPos.y, t, fadeAlpha);
     }
 
     // Draw powerups
@@ -304,6 +394,9 @@ export class IslandScene implements Scene {
     }
 
     this.particles.render(ctx);
+
+    // Weather foreground layer (rain, ash, motes, lightning bolts)
+    renderWeatherForeground(ctx, this.weatherState, GAME_WIDTH, GAME_HEIGHT);
 
     renderHud(ctx, {
       phase: 'encoding',
@@ -520,32 +613,106 @@ export class IslandScene implements Scene {
     });
   }
 
+  /**
+   * Spawn enemies based on island progression AND player performance.
+   *
+   * Base pacing curve (per Design/IslandProgression.md):
+   *   Island 1: No enemies — tutorial, pure exploration
+   *   Island 2: Crab only — introduces enemy avoidance
+   *   Island 3: Crab + Jelly — two patrol enemies, medium pressure
+   *   Island 4: Crab + Burrower — introduces the complex burrower
+   *   Island 5+: All three — full difficulty
+   *
+   * Performance modifiers:
+   *   S/A avg grade → elite variants replace base enemies + extra spawns
+   *   B/C avg grade → normal spawns (base curve)
+   *   D avg grade or first play → fewer enemies (novice assist)
+   */
   private spawnEnemies(): EnemyEntity[] {
     const lms = this.island.landmarks;
     const enemies: EnemyEntity[] = [];
+    const id = this.island.id;
+    const perf = this.deps.performance;
+    const tier = getPerformanceTier(perf);
 
-    // One crab patrols between first two landmarks
+    // Island 1 — safe sandbox, no enemies during exploration
+    if (id === 'island_01') return enemies;
+
+    // ── Base enemies (progression curve) ─────────────────────
+
+    // Crab patrols between the first two landmarks (Islands 2+)
     if (lms.length >= 2) {
       const midY1 = (lms[0]!.y + lms[1]!.y) / 2;
+      const kind = tier === 'elite' ? 'fire_crab' as const : 'crab' as const;
+      const speed = tier === 'elite' ? 32 : 24;
       enemies.push(createEnemy(
         `enemy_crab_0`,
-        'crab',
+        kind,
         lms[0]!.x + 20, midY1,
         lms[1]!.x - 20, midY1 + 10,
-        24,
+        speed,
       ));
     }
 
-    // One jellyfish patrols between second and third landmarks (if >2)
-    if (lms.length >= 3) {
+    // Jellyfish patrols between the second and third landmarks (Islands 3, 5+)
+    if (lms.length >= 3 && id !== 'island_02' && id !== 'island_04') {
       const midY2 = (lms[1]!.y + lms[2]!.y) / 2;
+      const kind = tier === 'elite' ? 'shadow_jelly' as const : 'jellyfish' as const;
+      const speed = tier === 'elite' ? 24 : 20;
       enemies.push(createEnemy(
         `enemy_jelly_0`,
-        'jellyfish',
+        kind,
         lms[1]!.x, midY2 - 15,
         lms[2]!.x - 10, midY2 + 15,
-        20,
+        speed,
       ));
+    }
+
+    // Burrower — hides underground, emerges near the player (Islands 4+)
+    if (lms.length >= 2 && id !== 'island_02' && id !== 'island_03') {
+      const cx = (lms[0]!.x + lms[lms.length - 1]!.x) / 2;
+      const cy = (lms[0]!.y + lms[lms.length - 1]!.y) / 2;
+      const kind = tier === 'elite' ? 'sand_wyrm' as const : 'burrower' as const;
+      const speed = tier === 'elite' ? 38 : 32;
+      enemies.push(createEnemy(
+        `enemy_burrow_0`,
+        kind,
+        cx, cy,
+        cx + 30, cy + 20,
+        speed,
+      ));
+    }
+
+    // ── Performance-based modifiers ──────────────────────────
+
+    // Novice assist: remove the last enemy on D-tier
+    if (tier === 'novice' && enemies.length > 1) {
+      enemies.pop();
+    }
+
+    // Elite: add extra enemies for high performers
+    if (tier === 'elite' && lms.length >= 2) {
+      // Add a Reef Urchin near the second landmark (area denial)
+      if (id !== 'island_02') {
+        enemies.push(createEnemy(
+          `enemy_urchin_0`,
+          'urchin',
+          lms[1]!.x + 15, lms[1]!.y + 25,
+          lms[1]!.x + 15, lms[1]!.y + 25, // stationary — patrolA = patrolB
+          0,
+        ));
+      }
+
+      // Add a Phantom Ray on islands 4+ for elite players
+      if (lms.length >= 3 && id !== 'island_02' && id !== 'island_03') {
+        enemies.push(createEnemy(
+          `enemy_ray_0`,
+          'ray',
+          lms[0]!.x + 10, lms[2]!.y,
+          lms[2]!.x - 10, lms[0]!.y,
+          36,
+        ));
+      }
     }
 
     return enemies;
@@ -567,7 +734,47 @@ export class IslandScene implements Scene {
       powerups.push(createPowerup('pu_shield_0', 'shield', mx, my));
     }
 
+    // Freeze powerup — near the last landmark
+    if (lms.length >= 3) {
+      powerups.push(createPowerup('pu_freeze_0', 'freeze', lms[2]!.x - 25, lms[2]!.y + 15));
+    }
+
+    // Reveal powerup — between landmarks, offset
+    if (lms.length >= 2) {
+      const rx = lms[1]!.x + 30;
+      const ry = lms[1]!.y - 20;
+      powerups.push(createPowerup('pu_reveal_0', 'reveal', rx, ry));
+    }
+
     return powerups;
+  }
+
+  /** Build deterministic vegetation decoration positions from island config */
+  private buildVegetationSprites(): Array<{ x: number; y: number; kind: string; scale: number }> {
+    const sprites: Array<{ x: number; y: number; kind: string; scale: number }> = [];
+    const vegetation = this.island.vegetation;
+    if (!vegetation || vegetation.length === 0) return sprites;
+
+    // Place 4-6 vegetation sprites per kind in varied positions around the island
+    // Use deterministic offsets derived from island id hash
+    let hash = 0;
+    for (let i = 0; i < this.island.id.length; i++) {
+      hash = ((hash << 5) - hash + this.island.id.charCodeAt(i)) | 0;
+    }
+
+    for (const kind of vegetation) {
+      const count = 4 + (Math.abs(hash) % 3); // 4-6 per kind
+      for (let i = 0; i < count; i++) {
+        // Spread around playable area (x: 10-230, y: 180-340)
+        const seed = Math.abs(hash * (i + 1) * 7919) % 10000;
+        const x = 14 + (seed % 212);
+        const y = 180 + ((seed * 3) % 160);
+        const scale = 0.7 + (seed % 5) * 0.1;
+        sprites.push({ x, y, kind, scale });
+      }
+    }
+
+    return sprites;
   }
 
   private checkCollision(a: { position: { x: number; y: number }; bounds: { w: number; h: number } },
@@ -582,11 +789,80 @@ export class IslandScene implements Scene {
       this.playerSpeedBoost = true;
       this.player.state.speed = 128;
       this.speedBoostTimer = 5;
-    } else {
+    } else if (kind === 'shield') {
       this.playerShielded = true;
       this.shieldTimer = 8;
+    } else if (kind === 'freeze') {
+      // Freeze all enemies for 3 seconds
+      this.freezeTimer = 3;
+      this.deps.audio.play(AudioEvent.FreezeBlast);
+    } else if (kind === 'reveal') {
+      // Show trail to next locked landmark for 5 seconds
+      this.revealTimer = 5;
+      const nextCard = this.conceptCards.find((c) => !c.state.unlocked);
+      if (nextCard) {
+        const lm = this.landmarks.find((l) => l.state.conceptId === nextCard.state.conceptId);
+        if (lm) {
+          this.revealTargetPos = { x: lm.position.x, y: lm.position.y };
+        }
+      }
     }
   }
+
+  /** When player touches an enemy, trigger a pop quiz on a discovered/placed concept */
+  private triggerEnemyQuiz(enemy: EnemyEntity): void {
+    // Find a concept that's been discovered or placed (i.e. "under review")
+    const reviewableConcepts = this.conceptCards.filter((c) => c.state.unlocked);
+    if (reviewableConcepts.length === 0 || this.quizActive) {
+      // No concepts to quiz on yet — just stun
+      this.playerStunTimer = 1.0;
+      enemy.state.stunCooldown = 2;
+      this.deps.audio.play(AudioEvent.RecallIncorrect);
+      this.particles.emitSparkle(this.player.position.x, this.player.position.y);
+      return;
+    }
+
+    // Pick a random concept among unlocked ones
+    const pick = reviewableConcepts[Math.floor(Math.random() * reviewableConcepts.length)]!;
+    const targetLandmark = this.landmarks.find((l) => l.state.conceptId === pick.state.conceptId);
+    if (!targetLandmark || !this.deps.onEnemyQuiz) {
+      // No quiz handler — fall back to stun
+      this.playerStunTimer = 1.0;
+      enemy.state.stunCooldown = 2;
+      this.deps.audio.play(AudioEvent.RecallIncorrect);
+      return;
+    }
+
+    this.quizActive = true;
+    this.quizEnemyId = enemy.id;
+    enemy.state.stunCooldown = 5; // prevent re-triggering during quiz
+
+    this.deps.onEnemyQuiz(pick.state.conceptId, targetLandmark.id, (correct: boolean) => {
+      this.quizActive = false;
+      if (correct) {
+        // Enemy defeated!
+        enemy.state.defeated = true;
+        enemy.visible = false;
+        this.deps.audio.play(AudioEvent.RecallCorrect);
+        this.particles.emitSparkle(enemy.position.x, enemy.position.y);
+        this.particles.emitSparkle(enemy.position.x, enemy.position.y - 6);
+      } else {
+        // Wrong answer — longer stun
+        this.playerStunTimer = 1.8;
+        this.deps.audio.play(AudioEvent.RecallIncorrect);
+        this.particles.emitSparkle(this.player.position.x, this.player.position.y);
+      }
+    });
+  }
+}
+
+/** Map player performance snapshot to a spawning tier */
+function getPerformanceTier(perf?: PerformanceSnapshot): 'novice' | 'normal' | 'elite' {
+  if (!perf || perf.completedCount === 0 || !perf.averageGrade) return 'normal';
+  const g = perf.averageGrade;
+  if (g === 'S' || g === 'A') return 'elite';
+  if (g === 'D') return 'novice';
+  return 'normal';
 }
 
 const fallbackLayout: TileMapLayout = {

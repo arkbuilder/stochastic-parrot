@@ -10,6 +10,8 @@ import { AudioEvent } from '../audio/types';
 import type { TelemetryClient } from '../telemetry/telemetry-client';
 import { TELEMETRY_EVENTS } from '../telemetry/events';
 import { ENCOUNTERS } from '../data/encounters';
+import { CONCEPTS } from '../data/concepts';
+import { ISLANDS } from '../data/islands';
 import { createFogThreat } from '../entities/threat';
 import type { LandmarkEntity } from '../entities/landmark';
 import {
@@ -59,6 +61,9 @@ export class EncounterScene implements Scene {
 
   private squidTotalFailures = 0;
   private squidAutoReleaseUsed = false;
+  private squidSlashAnimMs = 0;
+  private squidSlashLandmarkId = '';
+  private squidFreedCount = 0;
 
   constructor(private readonly data: EncounterStartData, private readonly deps: EncounterSceneDeps) {
     this.landmarks = data.landmarks;
@@ -313,6 +318,10 @@ export class EncounterScene implements Scene {
     } else if (this.data.encounterType === 'squid') {
       this.threat.state.fogDepth = Math.max(0, this.threat.state.fogDepth - 0.18);
       this.threat.state.healthRatio = Math.max(0, 1 - this.threat.state.fogDepth);
+      this.squidFreedCount += 1;
+      // Trigger slash animation on the island that was freed
+      this.squidSlashAnimMs = 400;
+      this.squidSlashLandmarkId = selectedLandmark.id;
     } else if (this.data.encounterType === 'fog') {
       applyRecallOutcomeToThreat(this.threat, true);
       this.deps.audio.play(AudioEvent.FogPushBack);
@@ -632,45 +641,159 @@ export class EncounterScene implements Scene {
   }
 
   private renderSquid(ctx: CanvasRenderingContext2D, t: number): void {
-    ctx.fillStyle = '#020617';
+    // Deep ocean background
+    const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+    grad.addColorStop(0, '#020617');
+    grad.addColorStop(0.3, '#0c0a2e');
+    grad.addColorStop(0.7, '#1a0a3e');
+    grad.addColorStop(1, '#020617');
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    // Kraken body
-    ctx.fillStyle = '#ec4899';
-    ctx.beginPath();
-    ctx.arc(120, 42, 28, 0, Math.PI * 2);
-    ctx.fill();
-    // Eyes
-    ctx.fillStyle = '#fbbf24';
-    ctx.beginPath(); ctx.arc(110, 38, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(130, 38, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(110, 38, 2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(130, 38, 2, 0, Math.PI * 2); ctx.fill();
-
-    // Tentacles (animated)
-    ctx.strokeStyle = '#db2777';
-    ctx.lineWidth = 3;
-    for (let i = 0; i < 5; i++) {
-      const baseX = 88 + i * 16;
-      ctx.beginPath();
-      ctx.moveTo(baseX, 60);
-      for (let seg = 0; seg < 4; seg++) {
-        const sy = 60 + seg * 20;
-        const sx = baseX + Math.sin(t * 2 + i + seg) * 12;
-        ctx.lineTo(sx, sy);
-      }
-      ctx.stroke();
+    // Underwater particles (bubbles)
+    for (let i = 0; i < 6; i++) {
+      const bx = (50 + i * 35 + Math.sin(t * 0.7 + i) * 15) % GAME_WIDTH;
+      const by = (300 - ((t * 20 + i * 50) % 320));
+      const br = 1 + (i % 3);
+      ctx.fillStyle = rgba('#818cf8', 0.15 + Math.sin(t + i) * 0.05);
+      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
     }
+
+    // Kraken body (larger, more menacing)
+    const bodyY = 38 + Math.sin(t * 0.8) * 3;
+    ctx.fillStyle = '#be185d';
+    ctx.beginPath();
+    ctx.ellipse(120, bodyY, 36, 26, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Spots on body
+    ctx.fillStyle = '#9d174d';
+    ctx.beginPath(); ctx.arc(105, bodyY - 5, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(135, bodyY + 3, 4, 0, Math.PI * 2); ctx.fill();
+    // Eyes (angry)
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath(); ctx.arc(108, bodyY - 2, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(132, bodyY - 2, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7c2d12';
+    ctx.beginPath(); ctx.arc(109, bodyY - 2, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(133, bodyY - 2, 3, 0, Math.PI * 2); ctx.fill();
+    // Angry brow lines
+    ctx.strokeStyle = '#9d174d';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(102, bodyY - 9); ctx.lineTo(114, bodyY - 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(138, bodyY - 9); ctx.lineTo(126, bodyY - 7); ctx.stroke();
     ctx.lineWidth = 1;
 
-    // Landmarks as island fragments (scaled up for encounter visibility)
+    // Current prompt index for tentacle state tracking
+    const freed = this.recallState.currentPromptIndex;
+
+    // Draw tentacles reaching to each island landmark
+    for (let li = 0; li < this.landmarks.length; li++) {
+      const lm = this.landmarks[li]!;
+      const lx = lm.position.x;
+      const ly = lm.position.y;
+
+      // Count how many prompts target this landmark
+      const promptsForLm = this.recallState.prompts.filter(p => p.correctLandmarkId === lm.id);
+      const allFreed = promptsForLm.every((_, pi) => {
+        const globalIdx = this.recallState.prompts.indexOf(promptsForLm[pi]!);
+        return globalIdx < freed;
+      });
+      const isBeingSlashed = this.squidSlashLandmarkId === lm.id && this.squidSlashAnimMs > 0;
+
+      if (!allFreed) {
+        // Tentacle from kraken body to island
+        const tentColor = isBeingSlashed ? '#f43f5e' : '#db2777';
+        const tentWidth = isBeingSlashed ? 4 : 3;
+        ctx.strokeStyle = tentColor;
+        ctx.lineWidth = tentWidth;
+        ctx.beginPath();
+        ctx.moveTo(120 + (li - 2) * 12, bodyY + 20);
+        for (let seg = 1; seg <= 4; seg++) {
+          const frac = seg / 4;
+          const mx = 120 + (li - 2) * 12 + (lx - 120 - (li - 2) * 12) * frac;
+          const my = bodyY + 20 + (ly - bodyY - 20) * frac;
+          const wave = Math.sin(t * 2.5 + li + seg) * (8 - seg * 1.5);
+          ctx.lineTo(mx + wave, my);
+        }
+        ctx.stroke();
+        ctx.lineWidth = 1;
+
+        // Tentacle grip ring around landmark
+        const gripPulse = 0.4 + Math.sin(t * 3 + li) * 0.2;
+        ctx.strokeStyle = rgba('#ec4899', gripPulse);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(lx, ly, 18, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      } else {
+        // Freed — tentacle recoils (short stump)
+        ctx.strokeStyle = rgba('#db2777', 0.3);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(120 + (li - 2) * 12, bodyY + 20);
+        ctx.lineTo(120 + (li - 2) * 10, bodyY + 40);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+    }
+
+    // Slash animation
+    if (this.squidSlashAnimMs > 0) {
+      this.squidSlashAnimMs -= 16;
+      const slashLm = this.landmarks.find(l => l.id === this.squidSlashLandmarkId);
+      if (slashLm) {
+        const slashProgress = 1 - this.squidSlashAnimMs / 400;
+        const sx = slashLm.position.x;
+        const sy = slashLm.position.y;
+        ctx.strokeStyle = rgba('#fbbf24', 1 - slashProgress);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(sx - 12 + slashProgress * 24, sy - 10);
+        ctx.lineTo(sx + 12 - slashProgress * 24, sy + 10);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+    }
+
+    // Island landmarks with name labels
     for (const landmark of this.landmarks) {
       const isTarget = this.currentPrompt?.correctLandmarkId === landmark.id;
       const isAssist = this.assistLandmarkId === landmark.id;
-      const glow = isTarget ? 1 : isAssist ? 1 : 0.3;
-      drawLandmark(ctx, landmark.position.x, landmark.position.y, landmark.id, false, glow, t, 1.4);
+      const promptsHere = this.recallState.prompts.filter(p => p.correctLandmarkId === landmark.id);
+      const allDone = promptsHere.every((_, pi) => {
+        const gi = this.recallState.prompts.indexOf(promptsHere[pi]!);
+        return gi < freed;
+      });
+      const glow = allDone ? 0.2 : isTarget ? 1 : isAssist ? 1 : 0.4;
+      drawLandmark(ctx, landmark.position.x, landmark.position.y, landmark.id, allDone, glow, t, 1.6);
+
+      // Island name label below landmark
+      const island = ISLANDS.find(isl => isl.id === landmark.id);
+      if (island) {
+        ctx.fillStyle = allDone ? rgba(TOKENS.colorTextMuted, 0.5) : TOKENS.colorText;
+        ctx.font = TOKENS.fontSmall;
+        ctx.textAlign = 'center';
+        const shortName = island.name.length > 10 ? island.name.slice(0, 9) + '…' : island.name;
+        ctx.fillText(shortName, landmark.position.x, landmark.position.y + 24);
+      }
+
+      // Freed checkmark
+      if (allDone) {
+        ctx.fillStyle = TOKENS.colorGreen400;
+        ctx.font = TOKENS.fontMedium;
+        ctx.textAlign = 'center';
+        ctx.fillText('✓', landmark.position.x, landmark.position.y - 18);
+      }
     }
+
+    // Title bar
+    ctx.fillStyle = rgba('#0f0524', 0.8);
+    ctx.fillRect(0, 0, GAME_WIDTH, 14);
+    ctx.fillStyle = '#f43f5e';
+    ctx.font = TOKENS.fontSmall;
+    ctx.textAlign = 'center';
+    ctx.fillText(`KRAKEN ATTACK — Slash ${this.recallState.prompts.length - freed} tentacles left`, GAME_WIDTH / 2, 11);
 
     drawVignette(ctx, GAME_WIDTH, GAME_HEIGHT, 0.5);
   }
@@ -680,6 +803,8 @@ export class EncounterScene implements Scene {
       return;
     }
 
+    const isSquid = this.data.encounterType === 'squid';
+
     // Mode label
     const modeLabel =
       this.data.encounterType === 'storm'
@@ -688,8 +813,8 @@ export class EncounterScene implements Scene {
           ? 'NULL DUEL'
           : this.data.encounterType === 'ruins'
             ? 'RUINS CHAIN'
-            : this.data.encounterType === 'squid'
-              ? 'KRAKEN RECALL'
+            : isSquid
+              ? 'KRAKEN ATTACK'
               : 'FOG RECALL';
 
     ctx.fillStyle = TOKENS.colorText;
@@ -700,35 +825,73 @@ export class EncounterScene implements Scene {
     // Progress dots
     drawProgressDots(ctx, GAME_WIDTH / 2, 352, this.recallState.currentPromptIndex, this.recallState.prompts.length);
 
-    // Find the correct landmark to show its icon in the prompt card
-    const targetLandmark = this.landmarks.find(
-      (lm) => lm.state.conceptId === this.currentPrompt!.conceptId,
-    );
-    const targetLandmarkId = targetLandmark?.id ?? '';
+    if (isSquid) {
+      // Squid prompt: show concept name + "Which island?" question
+      const concept = CONCEPTS.find(c => c.id === this.currentPrompt!.conceptId);
+      const conceptName = concept?.name ?? this.currentPrompt!.conceptId;
+      const landmarkIcon = concept?.landmarkId ?? '';
 
-    const cardX = 134;
-    const cardY = 326;
-    const cardW = 98;
-    const cardH = 32;
-    ctx.fillStyle = '#1e293b';
-    roundRect(ctx, cardX, cardY, cardW, cardH, 5);
-    ctx.fill();
-    const pulse = 0.7 + Math.sin(t * 4) * 0.2;
-    ctx.strokeStyle = rgba('#22d3ee', pulse);
-    ctx.lineWidth = 1.5;
-    roundRect(ctx, cardX, cardY, cardW, cardH, 5);
-    ctx.stroke();
-    ctx.lineWidth = 1;
+      const cardX = 8;
+      const cardY = 362;
+      const cardW = GAME_WIDTH - 16;
+      const cardH = 34;
+      ctx.fillStyle = '#1e0a2e';
+      roundRect(ctx, cardX, cardY, cardW, cardH, 5);
+      ctx.fill();
+      const pulse = 0.7 + Math.sin(t * 4) * 0.2;
+      ctx.strokeStyle = rgba('#ec4899', pulse);
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, cardX, cardY, cardW, cardH, 5);
+      ctx.stroke();
+      ctx.lineWidth = 1;
 
-    // "WHERE?" label
-    ctx.fillStyle = TOKENS.colorCyan400;
-    ctx.font = TOKENS.fontSmall;
-    ctx.textAlign = 'left';
-    ctx.fillText('WHERE?', cardX + 6, cardY + 14);
+      // Concept's original landmark icon
+      if (landmarkIcon) {
+        drawLandmark(ctx, cardX + 18, cardY + cardH / 2, landmarkIcon, false, 0.5, t, 0.8);
+      }
 
-    // Draw mini landmark icon in the prompt card
-    if (targetLandmarkId) {
-      drawLandmark(ctx, cardX + cardW - 20, cardY + cardH / 2, targetLandmarkId, false, 0.4, t, 0.9);
+      // Concept name
+      ctx.fillStyle = '#f9a8d4';
+      ctx.font = TOKENS.fontMedium;
+      ctx.textAlign = 'left';
+      ctx.fillText(conceptName, cardX + 34, cardY + 14);
+
+      // Question
+      ctx.fillStyle = TOKENS.colorYellow400;
+      ctx.font = TOKENS.fontSmall;
+      ctx.textAlign = 'left';
+      ctx.fillText('Which island? Slash the tentacle!', cardX + 34, cardY + 26);
+    } else {
+      // Non-squid encounters: original card layout
+      const targetLandmark = this.landmarks.find(
+        (lm) => lm.state.conceptId === this.currentPrompt!.conceptId,
+      );
+      const targetLandmarkId = targetLandmark?.id ?? '';
+
+      const cardX = 134;
+      const cardY = 326;
+      const cardW = 98;
+      const cardH = 32;
+      ctx.fillStyle = '#1e293b';
+      roundRect(ctx, cardX, cardY, cardW, cardH, 5);
+      ctx.fill();
+      const pulse = 0.7 + Math.sin(t * 4) * 0.2;
+      ctx.strokeStyle = rgba('#22d3ee', pulse);
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, cardX, cardY, cardW, cardH, 5);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+
+      // "WHERE?" label
+      ctx.fillStyle = TOKENS.colorCyan400;
+      ctx.font = TOKENS.fontSmall;
+      ctx.textAlign = 'left';
+      ctx.fillText('WHERE?', cardX + 6, cardY + 14);
+
+      // Draw mini landmark icon in the prompt card
+      if (targetLandmarkId) {
+        drawLandmark(ctx, cardX + cardW - 20, cardY + cardH / 2, targetLandmarkId, false, 0.4, t, 0.9);
+      }
     }
 
     // Instruction on first prompt
@@ -738,7 +901,10 @@ export class EncounterScene implements Scene {
         ctx.fillStyle = rgba('#facc15', hintAlpha * 0.8);
         ctx.font = TOKENS.fontSmall;
         ctx.textAlign = 'center';
-        ctx.fillText('Tap the landmark where you placed it!', GAME_WIDTH / 2, 300);
+        const instrText = isSquid
+          ? 'Tap the island where this concept belongs!'
+          : 'Tap the landmark where you placed it!';
+        ctx.fillText(instrText, GAME_WIDTH / 2, 300);
       }
     }
   }

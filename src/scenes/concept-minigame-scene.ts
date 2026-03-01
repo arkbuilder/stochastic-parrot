@@ -25,12 +25,18 @@ interface ConceptMinigameSceneDeps {
   landmarkId: string;
   audio: AudioManager;
   onComplete: () => void;
+  /** If set, wrong answers call this immediately (pop quiz mode from enemy touch) */
+  onFail?: () => void;
 }
 
-const DIALOG_BOX_Y = 260;
-const DIALOG_BOX_H = 120;
+const DIALOG_BOX_Y = 190;
+const DIALOG_BOX_H = 80;
 const CHOICE_BTN_H = 22;
 const CHOICE_BTN_GAP = 4;
+const CHOICE_START_Y = DIALOG_BOX_Y + DIALOG_BOX_H + 8; // 278
+const CHALLENGE_ITEMS_Y = 168;
+const CHALLENGE_ITEM_H = 24;
+const CHALLENGE_ITEM_GAP = 4;
 const TYPE_SPEED_MS = 25; // ms per character for typewriter effect
 
 export class ConceptMinigameScene implements Scene {
@@ -46,7 +52,6 @@ export class ConceptMinigameScene implements Scene {
   private showingFeedback = false;
   private feedbackText = '';
   private feedbackCorrect = false;
-  private waitingForTap = false;
 
   // Challenge state
   private challengeSelections: number[] = [];
@@ -54,6 +59,9 @@ export class ConceptMinigameScene implements Scene {
   private challengeFeedback = '';
   private challengeShowHint = false;
   private challengeAttempts = 0;
+
+  // Keyboard focus (-1 = none; indexes into choices or challenge items; last index = confirm)
+  private kbFocus = -1;
 
   // Time tracking
   private elapsedMs = 0;
@@ -71,7 +79,6 @@ export class ConceptMinigameScene implements Scene {
     this.typewriterTimer = 0;
     this.choiceSelected = -1;
     this.showingFeedback = false;
-    this.waitingForTap = false;
     this.challengeSelections = [];
     this.challengeComplete = false;
     this.challengeFeedback = '';
@@ -95,17 +102,35 @@ export class ConceptMinigameScene implements Scene {
       this.typewriterProgress = Math.min(targetLen, Math.floor(this.typewriterTimer / TYPE_SPEED_MS));
     }
 
+    // Handle arrow key navigation (move actions)
+    for (const a of actions) {
+      if (a.type === 'move') {
+        this.handleArrowNav(a.dy);
+      }
+    }
+
     const tap = actions.find(
       (a): a is Extract<InputAction, { type: 'primary' }> => a.type === 'primary',
     );
     if (!tap) return;
 
+    // Detect keyboard confirm (Enter/Space produces center coords)
+    const isKeyboard = tap.x === GAME_WIDTH / 2 && tap.y === GAME_HEIGHT / 2;
+
     switch (this.phase) {
       case 'dialog':
-        this.handleDialogTap(tap.x, tap.y);
+        if (isKeyboard && this.kbFocus >= 0) {
+          this.handleDialogKeyConfirm();
+        } else {
+          this.handleDialogTap(tap.x, tap.y);
+        }
         break;
       case 'challenge':
-        this.handleChallengeTap(tap.x, tap.y);
+        if (isKeyboard && this.kbFocus >= 0) {
+          this.handleChallengeKeyConfirm();
+        } else {
+          this.handleChallengeTap(tap.x, tap.y);
+        }
         break;
       case 'wrapup':
         this.handleWrapupTap();
@@ -206,6 +231,7 @@ export class ConceptMinigameScene implements Scene {
     // Typewriter text
     const displayText = this.getCurrentDisplayText();
     const visibleText = displayText.slice(0, this.typewriterProgress);
+    ctx.fillStyle = TOKENS.colorText;
     this.renderWrappedText(ctx, visibleText, 16, DIALOG_BOX_Y + 14, GAME_WIDTH - 32, 12);
 
     // If showing feedback, show "tap to continue"
@@ -226,7 +252,6 @@ export class ConceptMinigameScene implements Scene {
 
     // If no choices and text is complete, show "tap to continue"
     if (!beat.choices && !this.showingFeedback && this.typewriterProgress >= beat.text.length) {
-      this.waitingForTap = true;
       const blink = Math.sin(t * 4) > 0;
       if (blink) {
         ctx.fillStyle = TOKENS.colorTextMuted;
@@ -238,23 +263,33 @@ export class ConceptMinigameScene implements Scene {
   }
 
   private renderChoices(ctx: CanvasRenderingContext2D, choices: string[], t: number): void {
-    const startY = DIALOG_BOX_Y + DIALOG_BOX_H + 6;
+    const startY = CHOICE_START_Y;
 
     for (let i = 0; i < choices.length; i++) {
       const btnY = startY + i * (CHOICE_BTN_H + CHOICE_BTN_GAP);
       const isHovered = this.choiceSelected === i;
-      const pulse = isHovered ? 0.3 + Math.sin(t * 6) * 0.1 : 0;
+      const isFocused = this.kbFocus === i;
+      const pulse = (isHovered || isFocused) ? 0.3 + Math.sin(t * 6) * 0.1 : 0;
 
-      ctx.fillStyle = isHovered ? '#1e3a5f' : '#131b2e';
+      ctx.fillStyle = (isHovered || isFocused) ? '#1e3a5f' : '#131b2e';
       roundRect(ctx, 16, btnY, GAME_WIDTH - 32, CHOICE_BTN_H, 4);
       ctx.fill();
 
-      ctx.strokeStyle = rgba(TOKENS.colorCyan400, 0.6 + pulse);
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = isFocused ? TOKENS.colorYellow400 : rgba(TOKENS.colorCyan400, 0.6 + pulse);
+      ctx.lineWidth = isFocused ? 2 : 1;
       roundRect(ctx, 16, btnY, GAME_WIDTH - 32, CHOICE_BTN_H, 4);
       ctx.stroke();
+      ctx.lineWidth = 1;
 
-      ctx.fillStyle = TOKENS.colorText;
+      // Focus indicator arrow
+      if (isFocused) {
+        ctx.fillStyle = TOKENS.colorYellow400;
+        ctx.font = TOKENS.fontSmall;
+        ctx.textAlign = 'right';
+        ctx.fillText('▸', 22, btnY + 14);
+      }
+
+      ctx.fillStyle = isFocused ? TOKENS.colorYellow300 : TOKENS.colorText;
       ctx.font = TOKENS.fontSmall;
       ctx.textAlign = 'left';
       ctx.fillText(`${i + 1}. ${choices[i]}`, 24, btnY + 14);
@@ -291,7 +326,7 @@ export class ConceptMinigameScene implements Scene {
 
     // If beat has choices, check which button was tapped
     if (beat.choices) {
-      const startY = DIALOG_BOX_Y + DIALOG_BOX_H + 6;
+      const startY = CHOICE_START_Y;
       for (let i = 0; i < beat.choices.length; i++) {
         const btnY = startY + i * (CHOICE_BTN_H + CHOICE_BTN_GAP);
         if (x >= 16 && x <= GAME_WIDTH - 16 && y >= btnY && y <= btnY + CHOICE_BTN_H) {
@@ -309,6 +344,11 @@ export class ConceptMinigameScene implements Scene {
             this.deps.audio.play(AudioEvent.RecallCorrect);
           } else {
             this.deps.audio.play(AudioEvent.RecallIncorrect);
+            // In pop quiz mode, wrong answer = immediate fail
+            if (this.deps.onFail) {
+              this.deps.onFail();
+              return;
+            }
           }
           return;
         }
@@ -316,11 +356,8 @@ export class ConceptMinigameScene implements Scene {
       return;
     }
 
-    // No choices — just advance on tap
-    if (this.waitingForTap) {
-      this.waitingForTap = false;
-      this.advanceDialog();
-    }
+    // No choices — just advance on tap (typewriter is complete, no feedback)
+    this.advanceDialog();
   }
 
   private advanceDialog(): void {
@@ -328,6 +365,7 @@ export class ConceptMinigameScene implements Scene {
     this.typewriterProgress = 0;
     this.typewriterTimer = 0;
     this.choiceSelected = -1;
+    this.kbFocus = -1;
 
     if (this.dialogIndex >= this.mg.dialog.length) {
       this.advanceToChallenge();
@@ -341,6 +379,7 @@ export class ConceptMinigameScene implements Scene {
     this.challengeFeedback = '';
     this.challengeShowHint = false;
     this.challengeAttempts = 0;
+    this.kbFocus = -1;
     this.deps.audio.play(AudioEvent.BitChirp);
   }
 
@@ -350,6 +389,7 @@ export class ConceptMinigameScene implements Scene {
 
   private renderChallenge(ctx: CanvasRenderingContext2D, t: number): void {
     const ch = this.mg.challenge;
+    const itemStep = CHALLENGE_ITEM_H + CHALLENGE_ITEM_GAP;
 
     // Instruction header
     ctx.fillStyle = TOKENS.colorYellow400;
@@ -361,69 +401,79 @@ export class ConceptMinigameScene implements Scene {
     }
 
     // Render items as tappable buttons
-    const itemStartY = 170;
-    const itemH = 28;
-    const itemGap = 6;
-
     for (let i = 0; i < ch.items.length; i++) {
-      const iy = itemStartY + i * (itemH + itemGap);
+      const iy = CHALLENGE_ITEMS_Y + i * itemStep;
       const isSelected = this.challengeSelections.includes(i);
+      const isFocused = this.kbFocus === i;
       const pulse = isSelected ? 0.2 + Math.sin(t * 4) * 0.1 : 0;
 
       // Button background
-      ctx.fillStyle = isSelected ? '#2a1e40' : '#131b2e';
-      roundRect(ctx, 20, iy, GAME_WIDTH - 40, itemH, 5);
+      ctx.fillStyle = isSelected ? '#2a1e40' : isFocused ? '#1e2a3f' : '#131b2e';
+      roundRect(ctx, 20, iy, GAME_WIDTH - 40, CHALLENGE_ITEM_H, 5);
       ctx.fill();
 
       // Button border
-      ctx.strokeStyle = isSelected ? TOKENS.colorYellow400 : rgba(TOKENS.colorCyan400, 0.4 + pulse);
-      ctx.lineWidth = isSelected ? 2 : 1;
-      roundRect(ctx, 20, iy, GAME_WIDTH - 40, itemH, 5);
+      ctx.strokeStyle = isFocused ? TOKENS.colorYellow400 : isSelected ? TOKENS.colorYellow400 : rgba(TOKENS.colorCyan400, 0.4 + pulse);
+      ctx.lineWidth = (isSelected || isFocused) ? 2 : 1;
+      roundRect(ctx, 20, iy, GAME_WIDTH - 40, CHALLENGE_ITEM_H, 5);
       ctx.stroke();
       ctx.lineWidth = 1;
+
+      // Focus indicator arrow
+      if (isFocused && !isSelected) {
+        ctx.fillStyle = TOKENS.colorYellow400;
+        ctx.font = TOKENS.fontSmall;
+        ctx.textAlign = 'right';
+        ctx.fillText('\u25b8', 26, iy + 15);
+      }
 
       // Check mark for selected
       if (isSelected) {
         ctx.fillStyle = TOKENS.colorYellow400;
         ctx.font = TOKENS.fontMedium;
         ctx.textAlign = 'left';
-        ctx.fillText('✓', 26, iy + 18);
+        ctx.fillText('✓', 26, iy + 16);
       }
 
       // Item text
       ctx.fillStyle = isSelected ? TOKENS.colorYellow300 : TOKENS.colorText;
       ctx.font = TOKENS.fontSmall;
       ctx.textAlign = 'left';
-      ctx.fillText(ch.items[i]!, isSelected ? 38 : 28, iy + 17);
+      ctx.fillText(ch.items[i]!, isSelected ? 38 : 28, iy + 15);
     }
+
+    // Dynamic Y positions after items
+    const itemsBottom = CHALLENGE_ITEMS_Y + ch.items.length * itemStep;
+    const confirmY = itemsBottom + 6;
+    const feedbackY = confirmY + 30;
 
     // Confirm button (when selections made)
     if (this.challengeSelections.length > 0 && !this.challengeComplete) {
-      const confirmY = itemStartY + ch.items.length * (itemH + itemGap) + 4;
+      const confirmFocused = this.kbFocus === ch.items.length;
       const confirmPulse = 0.7 + Math.sin(t * 3) * 0.2;
-      ctx.fillStyle = '#1e3a2e';
+      ctx.fillStyle = confirmFocused ? '#1e4a3e' : '#1e3a2e';
       roundRect(ctx, 60, confirmY, GAME_WIDTH - 120, 24, 5);
       ctx.fill();
-      ctx.strokeStyle = rgba(TOKENS.colorGreen400, confirmPulse);
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = confirmFocused ? TOKENS.colorYellow400 : rgba(TOKENS.colorGreen400, confirmPulse);
+      ctx.lineWidth = confirmFocused ? 2 : 1.5;
       roundRect(ctx, 60, confirmY, GAME_WIDTH - 120, 24, 5);
       ctx.stroke();
       ctx.lineWidth = 1;
-      ctx.fillStyle = TOKENS.colorGreen400;
+      ctx.fillStyle = confirmFocused ? TOKENS.colorYellow300 : TOKENS.colorGreen400;
       ctx.font = TOKENS.fontSmall;
       ctx.textAlign = 'center';
       ctx.fillText('CONFIRM ✓', GAME_WIDTH / 2, confirmY + 15);
     }
 
-    // Feedback area
+    // Feedback area (positioned dynamically below confirm)
     if (this.challengeFeedback) {
       ctx.fillStyle = this.challengeComplete ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)';
-      roundRect(ctx, 12, DIALOG_BOX_Y + 8, GAME_WIDTH - 24, 40, 5);
+      roundRect(ctx, 12, feedbackY, GAME_WIDTH - 24, 34, 5);
       ctx.fill();
       ctx.fillStyle = this.challengeComplete ? TOKENS.colorGreen400 : TOKENS.colorRed400;
       ctx.font = TOKENS.fontSmall;
       ctx.textAlign = 'center';
-      this.renderWrappedText(ctx, this.challengeFeedback, 20, DIALOG_BOX_Y + 20, GAME_WIDTH - 40, 11);
+      this.renderWrappedText(ctx, this.challengeFeedback, 20, feedbackY + 10, GAME_WIDTH - 40, 11);
     }
 
     // Hint (after 2+ wrong attempts)
@@ -431,7 +481,7 @@ export class ConceptMinigameScene implements Scene {
       ctx.fillStyle = rgba(TOKENS.colorYellow400, 0.7);
       ctx.font = TOKENS.fontSmall;
       ctx.textAlign = 'center';
-      ctx.fillText(`💡 ${ch.hintText}`, GAME_WIDTH / 2, DIALOG_BOX_Y + 62);
+      ctx.fillText(`💡 ${ch.hintText}`, GAME_WIDTH / 2, feedbackY + 44);
     }
 
     // Tap to continue after success
@@ -441,7 +491,7 @@ export class ConceptMinigameScene implements Scene {
         ctx.fillStyle = TOKENS.colorTextMuted;
         ctx.font = TOKENS.fontSmall;
         ctx.textAlign = 'center';
-        ctx.fillText('▼ tap to continue', GAME_WIDTH / 2, DIALOG_BOX_Y + DIALOG_BOX_H - 6);
+        ctx.fillText('▼ tap to continue', GAME_WIDTH / 2, GAME_HEIGHT - 12);
       }
     }
   }
@@ -457,13 +507,12 @@ export class ConceptMinigameScene implements Scene {
       return;
     }
 
-    const itemStartY = 170;
-    const itemH = 28;
-    const itemGap = 6;
+    const itemStep = CHALLENGE_ITEM_H + CHALLENGE_ITEM_GAP;
+    const itemsBottom = CHALLENGE_ITEMS_Y + ch.items.length * itemStep;
+    const confirmY = itemsBottom + 6;
 
     // Check confirm button
     if (this.challengeSelections.length > 0) {
-      const confirmY = itemStartY + ch.items.length * (itemH + itemGap) + 4;
       if (x >= 60 && x <= GAME_WIDTH - 60 && y >= confirmY && y <= confirmY + 24) {
         this.evaluateChallenge();
         return;
@@ -472,8 +521,8 @@ export class ConceptMinigameScene implements Scene {
 
     // Check item taps
     for (let i = 0; i < ch.items.length; i++) {
-      const iy = itemStartY + i * (itemH + itemGap);
-      if (x >= 20 && x <= GAME_WIDTH - 20 && y >= iy && y <= iy + itemH) {
+      const iy = CHALLENGE_ITEMS_Y + i * itemStep;
+      if (x >= 20 && x <= GAME_WIDTH - 20 && y >= iy && y <= iy + CHALLENGE_ITEM_H) {
         if (ch.type === 'select' || ch.type === 'adjust') {
           // Single selection
           this.challengeSelections = [i];
@@ -517,7 +566,13 @@ export class ConceptMinigameScene implements Scene {
     } else {
       this.challengeFeedback = 'Not quite — try again!';
       this.challengeSelections = [];
+      this.kbFocus = -1;
       this.deps.audio.play(AudioEvent.RecallIncorrect);
+      // In pop quiz mode, wrong answer = immediate fail
+      if (this.deps.onFail) {
+        this.deps.onFail();
+        return;
+      }
       if (this.challengeAttempts >= 2) {
         this.challengeShowHint = true;
       }
@@ -584,6 +639,129 @@ export class ConceptMinigameScene implements Scene {
     this.phase = 'done';
     this.deps.audio.play(AudioEvent.ConceptPlaced);
     this.deps.onComplete();
+  }
+
+  // ────────────────────────────────────
+  // KEYBOARD NAVIGATION
+  // ────────────────────────────────────
+
+  private handleArrowNav(dy: number): void {
+    if (dy === 0) return;
+
+    if (this.phase === 'dialog') {
+      const beat = this.currentBeat;
+      if (!beat?.choices) return;
+      // Only navigate when choices are visible (typewriter done, no feedback)
+      if (this.typewriterProgress < beat.text.length || this.showingFeedback) return;
+      const count = beat.choices.length;
+      if (this.kbFocus < 0) {
+        this.kbFocus = dy > 0 ? 0 : count - 1;
+      } else {
+        this.kbFocus = (this.kbFocus + dy + count) % count;
+      }
+    } else if (this.phase === 'challenge' && !this.challengeComplete) {
+      const ch = this.mg.challenge;
+      // items + (confirm button if selections exist)
+      const count = ch.items.length + (this.challengeSelections.length > 0 ? 1 : 0);
+      if (count === 0) return;
+      if (this.kbFocus < 0) {
+        this.kbFocus = dy > 0 ? 0 : count - 1;
+      } else {
+        this.kbFocus = (this.kbFocus + dy + count) % count;
+      }
+    }
+  }
+
+  private handleDialogKeyConfirm(): void {
+    const beat = this.currentBeat;
+    if (!beat) {
+      this.advanceToChallenge();
+      return;
+    }
+
+    const displayText = this.getCurrentDisplayText();
+
+    // If typewriter still going, skip to full text
+    if (this.typewriterProgress < displayText.length) {
+      this.typewriterProgress = displayText.length;
+      return;
+    }
+
+    // If showing feedback, advance
+    if (this.showingFeedback) {
+      this.showingFeedback = false;
+      if (this.feedbackCorrect) {
+        this.advanceDialog();
+      } else {
+        this.typewriterTimer = beat.text.length * TYPE_SPEED_MS;
+        this.typewriterProgress = beat.text.length;
+      }
+      return;
+    }
+
+    // Select the focused choice
+    if (beat.choices && this.kbFocus >= 0 && this.kbFocus < beat.choices.length) {
+      const i = this.kbFocus;
+      this.choiceSelected = i;
+      const isCorrect = i === beat.correctChoice;
+      this.feedbackCorrect = isCorrect;
+      this.feedbackText = isCorrect
+        ? (beat.correctFeedback ?? 'Correct!')
+        : (beat.wrongFeedback ?? 'Not quite — try again!');
+      this.showingFeedback = true;
+      this.typewriterProgress = 0;
+      this.typewriterTimer = 0;
+      this.kbFocus = -1;
+
+      if (isCorrect) {
+        this.deps.audio.play(AudioEvent.RecallCorrect);
+      } else {
+        this.deps.audio.play(AudioEvent.RecallIncorrect);
+        if (this.deps.onFail) {
+          this.deps.onFail();
+        }
+      }
+      return;
+    }
+
+    // No choices — just advance
+    if (!beat.choices) {
+      this.advanceDialog();
+    }
+  }
+
+  private handleChallengeKeyConfirm(): void {
+    const ch = this.mg.challenge;
+
+    if (this.challengeComplete) {
+      this.phase = 'wrapup';
+      this.typewriterProgress = 0;
+      this.typewriterTimer = 0;
+      this.kbFocus = -1;
+      return;
+    }
+
+    // Confirm button focused
+    if (this.kbFocus === ch.items.length && this.challengeSelections.length > 0) {
+      this.evaluateChallenge();
+      return;
+    }
+
+    // Item focused — toggle/select
+    if (this.kbFocus >= 0 && this.kbFocus < ch.items.length) {
+      const i = this.kbFocus;
+      if (ch.type === 'select' || ch.type === 'adjust') {
+        this.challengeSelections = [i];
+      } else {
+        const idx = this.challengeSelections.indexOf(i);
+        if (idx >= 0) {
+          this.challengeSelections.splice(idx, 1);
+        } else {
+          this.challengeSelections.push(i);
+        }
+      }
+      this.deps.audio.play(AudioEvent.BitChirp);
+    }
   }
 
   // ────────────────────────────────────

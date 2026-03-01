@@ -53,11 +53,11 @@ export const ENCOUNTERS: EncounterTemplate[] = [
   {
     id: 'giant_squid',
     type: 'squid',
-    promptCount: 8,
-    timeWindowMs: 7000,
+    promptCount: 5,
+    timeWindowMs: 8000,
     timeDecayPerPromptMs: 500,
     noviceAssistThreshold: 2,
     assistStrength: 'obvious',
-    expertParTimeMs: 30000,
+    expertParTimeMs: 25000,
   },
 ];

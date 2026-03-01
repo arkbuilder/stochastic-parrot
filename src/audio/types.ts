@@ -8,6 +8,10 @@ export enum AudioEvent {
   ChartFragmentEarned = 'chart_fragment_earned',
   BitChirp = 'bit_chirp',
   NemoFootstep = 'nemo_footstep',
+  CurtainOpen = 'curtain_open',
+  TypewriterTick = 'typewriter_tick',
+  EnemyBurrow = 'enemy_burrow',
+  FreezeBlast = 'freeze_blast',
 }
 
 export type MusicLayerName = 'base' | 'rhythm' | 'tension' | 'resolution';

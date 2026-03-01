@@ -13,6 +13,8 @@ export interface IslandConfig {
   landmarks: LandmarkConfig[];
   unlockAfter?: string;
   reward: string;
+  /** Unique vegetation types found on this island (bestiary renderHint keys) */
+  vegetation: string[];
 }
 
 export const ISLANDS: IslandConfig[] = [
@@ -27,6 +29,7 @@ export const ISLANDS: IslandConfig[] = [
       { id: 'cannon', conceptId: 'inference', x: 185, y: 260 },
     ],
     reward: 'chart_fragment_a',
+    vegetation: ['palm_tree'],
   },
   {
     id: 'island_02',
@@ -40,6 +43,7 @@ export const ISLANDS: IslandConfig[] = [
     ],
     unlockAfter: 'island_01',
     reward: 'chart_fragment_b',
+    vegetation: ['mangrove'],
   },
   {
     id: 'island_03',
@@ -53,6 +57,7 @@ export const ISLANDS: IslandConfig[] = [
     ],
     unlockAfter: 'island_02',
     reward: 'chart_fragment_c',
+    vegetation: ['coral_fan'],
   },
   {
     id: 'island_04',
@@ -66,6 +71,7 @@ export const ISLANDS: IslandConfig[] = [
     ],
     unlockAfter: 'island_03',
     reward: 'chart_fragment_d',
+    vegetation: ['storm_pine'],
   },
   {
     id: 'island_05',
@@ -79,6 +85,7 @@ export const ISLANDS: IslandConfig[] = [
     ],
     unlockAfter: 'island_04',
     reward: 'golden_chart',
+    vegetation: ['glow_kelp'],
   },
   {
     id: 'hidden_reef',
@@ -92,5 +99,6 @@ export const ISLANDS: IslandConfig[] = [
     ],
     unlockAfter: 'island_05',
     reward: 'hidden_reef_relic',
+    vegetation: ['sea_anemone'],
   },
 ];

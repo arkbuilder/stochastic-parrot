@@ -182,28 +182,74 @@ function renderNullCaptain(ctx: CanvasRenderingContext2D, anim: string, t: numbe
   }
 }
 
+/**
+ * Kraken character — cohesive puppet for 240×400 cutscenes.
+ *
+ * Layout (local coords, origin = character placement point):
+ *   Mantle : ellipse centred at (0, -18), ~20w × 26h — deep violet
+ *   Eye    : centred at (0, -18), outer radius 8 — gold iris, black pupil
+ *   Spots  : 3 cyan bioluminescent dots on the mantle
+ *   Tentacles: 6 tendrils hanging downward from mantle base (y ≈ -4),
+ *              tips reaching y ≈ +30, sway ±3 px so they stay tight
+ *
+ * Bounding box ≈ 40w × 54h  (fits comfortably on 240×400 even at 1.3× scale).
+ *
+ * Ref: Design/Characters.md §4 — "deep violet body, pink suckers,
+ *      cyan bioluminescent spots, never fully visible."
+ */
 function renderKraken(ctx: CanvasRenderingContext2D, t: number): void {
-  // Tentacles
-  for (let i = 0; i < 4; i++) {
-    const sway = Math.sin(t * 2 + i * 1.5) * 8;
-    const tipSway = Math.sin(t * 3 + i * 0.8) * 4;
-    ctx.strokeStyle = rgba('#ec4899', 0.6 + i * 0.05);
-    ctx.lineWidth = 2;
+  // ── Mantle (body) ──
+  ctx.fillStyle = rgba('#7c3aed', 0.75);          // --violet-500
+  ctx.beginPath();
+  ctx.ellipse(0, -18, 14, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Tentacles (6, hanging downward from mantle base) ──
+  const tentacleCount = 6;
+  for (let i = 0; i < tentacleCount; i++) {
+    // Spread evenly across mantle width (±10 px)
+    const baseX = -10 + i * (20 / (tentacleCount - 1));
+    const sway = Math.sin(t * 2.2 + i * 1.1) * 3;
+    const tipSway = Math.sin(t * 2.8 + i * 0.7) * 2;
+    ctx.strokeStyle = rgba('#ec4899', 0.55 + i * 0.04); // --pink-500
+    ctx.lineWidth = 2 - i * 0.1;
     ctx.beginPath();
-    ctx.moveTo(-12 + i * 8, 0);
-    ctx.quadraticCurveTo(-12 + i * 8 + sway, -20, -12 + i * 8 + tipSway, -40);
+    ctx.moveTo(baseX, -4);                                   // mantle bottom
+    ctx.quadraticCurveTo(baseX + sway, 14, baseX + tipSway, 30);
     ctx.stroke();
+    // Small pink sucker dot near the midpoint
+    ctx.fillStyle = rgba('#f472b6', 0.4);
+    ctx.beginPath();
+    ctx.arc(baseX + sway * 0.5, 12, 1.2, 0, Math.PI * 2);
+    ctx.fill();
   }
-  // Eye
-  const eyePulse = 0.6 + Math.sin(t * 3) * 0.3;
+
+  // ── Bioluminescent spots ──
+  const spotGlow = 0.3 + Math.sin(t * 4) * 0.2;
+  ctx.fillStyle = rgba('#22d3ee', spotGlow);              // cyan glow
+  ctx.beginPath(); ctx.arc(-5, -22, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6,  -14, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-3, -10, 1.5, 0, Math.PI * 2); ctx.fill();
+
+  // ── Eye (single, centred, large) ──
+  const eyePulse = 0.7 + Math.sin(t * 3) * 0.25;
+  // Outer glow ring
+  ctx.fillStyle = rgba('#fbbf24', eyePulse * 0.3);
+  ctx.beginPath();
+  ctx.arc(0, -18, 10, 0, Math.PI * 2);
+  ctx.fill();
+  // Gold iris
   ctx.fillStyle = rgba('#fbbf24', eyePulse);
   ctx.beginPath();
-  ctx.arc(4, -8, 5, 0, Math.PI * 2);
+  ctx.arc(0, -18, 6, 0, Math.PI * 2);
   ctx.fill();
+  // Black pupil (slight tracking wobble)
+  const pupilDx = Math.sin(t * 1.5) * 1.2;
   ctx.fillStyle = '#000';
   ctx.beginPath();
-  ctx.arc(4, -8, 2, 0, Math.PI * 2);
+  ctx.arc(pupilDx, -18, 2.5, 0, Math.PI * 2);
   ctx.fill();
+
   ctx.lineWidth = 1;
 }
 
@@ -313,12 +359,12 @@ function drawLightningBolt(ctx: CanvasRenderingContext2D, t: number): void {
 }
 
 function drawTentacle(ctx: CanvasRenderingContext2D, t: number): void {
-  const sway = Math.sin(t * 2) * 10;
+  const sway = Math.sin(t * 2) * 3;
   ctx.strokeStyle = rgba('#ec4899', 0.7);
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(0, 20);
-  ctx.quadraticCurveTo(sway, -10, sway * 0.5, -40);
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(sway, 15, sway * 0.5, 30);
   ctx.stroke();
   ctx.lineWidth = 1;
 }

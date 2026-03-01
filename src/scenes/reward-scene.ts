@@ -33,7 +33,12 @@ export class RewardScene implements Scene {
     this.elapsedMs = 0;
     this.displayedScore = 0;
     this.deps.audio.setMusicLayers(['base', 'resolution']);
+    this.deps.audio.playFanfare('victory_short');
     this.deps.audio.play(AudioEvent.ChartFragmentEarned);
+
+    if (this.reward.expertBonus) {
+      this.deps.audio.play(AudioEvent.AchievementEarned);
+    }
 
     for (let index = 0; index < 18; index += 1) {
       this.particles.emitSparkle(120 + (Math.random() - 0.5) * 100, 130 + (Math.random() - 0.5) * 60);

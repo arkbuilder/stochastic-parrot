@@ -2,6 +2,7 @@ import type { Scene, SceneContext } from '../core/types';
 import { GAME_WIDTH, GAME_HEIGHT } from '../core/types';
 import type { InputAction } from '../input/types';
 import type { AudioManager } from '../audio/audio-manager';
+import { AudioEvent } from '../audio/types';
 import type { TelemetryClient } from '../telemetry/telemetry-client';
 import { TELEMETRY_EVENTS } from '../telemetry/events';
 import { TOKENS } from '../rendering/tokens';
@@ -10,13 +11,15 @@ import {
   drawVignette, drawButton, roundRect, rgba, drawPulsingArrow,
 } from '../rendering/draw';
 import type { OverworldProgress } from './flow-types';
-import { OVERWORLD_NODES } from '../data/progression';
+import { OVERWORLD_NODES, type OverworldNodeConfig } from '../data/progression';
 import { createWeatherState, updateWeatherSystem, type WeatherState } from '../systems/weather-system';
 import { renderWeatherForeground } from '../rendering/weather';
 
 interface OverworldSceneDeps {
   progress: OverworldProgress;
   fromIslandId?: string;
+  /** Optional override for which nodes to show (DLC vs base). Defaults to base OVERWORLD_NODES. */
+  nodes?: OverworldNodeConfig[];
   telemetry: TelemetryClient;
   audio: AudioManager;
   onIslandArrive: (islandId: string) => void;
@@ -31,6 +34,11 @@ export class OverworldScene implements Scene {
   private phase: OverworldPhase = 'chart_visible';
   private selectedNodeId: string | null = null;
   private sailFromNodeId: string | null = null;
+
+  /** Nodes to display — DLC override or base OVERWORLD_NODES */
+  private get nodes(): OverworldNodeConfig[] {
+    return this.deps.nodes ?? OVERWORLD_NODES;
+  }
   private sailProgress = 0;
   private sailDurationMs = 12_000;
   private sightingShown = false;
@@ -56,6 +64,7 @@ export class OverworldScene implements Scene {
     this.sailFromNodeId = this.deps.fromIslandId ?? null;
 
     this.deps.audio.setMusicLayers(['base', 'rhythm']);
+    this.deps.audio.playSong('overworld');
     this.deps.telemetry.emit(TELEMETRY_EVENTS.overworldEntered, {
       from_island_id: this.deps.fromIslandId ?? 'menu',
     });
@@ -87,6 +96,7 @@ export class OverworldScene implements Scene {
 
       if (this.sailProgress >= 1) {
         const arrived = this.selectedNodeId;
+        this.deps.audio.play(AudioEvent.AnchorDrop);
         this.deps.telemetry.emit(TELEMETRY_EVENTS.islandArrived, {
           island_id: arrived,
         });
@@ -124,6 +134,7 @@ export class OverworldScene implements Scene {
       this.sightingShown = false;
       this.lightningFlash = 0;
       this.lightningCooldown = 0.3 + Math.random() * 0.5; // first bolt arrives quickly
+      this.deps.audio.play(AudioEvent.SailUnfurl);
 
       this.deps.telemetry.emit(TELEMETRY_EVENTS.sailingStarted, {
         from_node: this.sailFromNodeId,
@@ -407,7 +418,7 @@ export class OverworldScene implements Scene {
     ctx.fillStyle = rgba('#0a1e38', 0.35);
     ctx.fillRect(0, HORIZON_Y, GAME_WIDTH, 236);
 
-    const visibleNodes = OVERWORLD_NODES.filter((node) =>
+    const visibleNodes = this.nodes.filter((node) =>
       node.secret ? this.deps.progress.shipUpgrades.includes('ghostlight_lantern') : true,
     );
 
@@ -581,7 +592,7 @@ export class OverworldScene implements Scene {
     if (this.phase === 'sailing') {
       ctx.strokeStyle = rgba('#67e8f9', 0.2);
       ctx.lineWidth = 1;
-      const from = OVERWORLD_NODES.find((n) => n.islandId === this.sailFromNodeId) ?? OVERWORLD_NODES[0];
+      const from = this.nodes.find((n) => n.islandId === this.sailFromNodeId) ?? this.nodes[0];
       if (from) {
         ctx.beginPath();
         ctx.moveTo(from.x, from.y);
@@ -652,7 +663,7 @@ export class OverworldScene implements Scene {
 
     // Selected island name
     if (this.selectedNodeId && this.phase !== 'sailing') {
-      const node = OVERWORLD_NODES.find((n) => n.islandId === this.selectedNodeId);
+      const node = this.nodes.find((n) => n.islandId === this.selectedNodeId);
       if (node) {
         ctx.fillStyle = TOKENS.colorText;
         ctx.font = TOKENS.fontMedium;
@@ -680,10 +691,10 @@ export class OverworldScene implements Scene {
 
   private getDefaultSelectedNode() {
     if (this.deps.fromIslandId) {
-      return OVERWORLD_NODES.find((node) => node.islandId === this.deps.fromIslandId);
+      return this.nodes.find((node) => node.islandId === this.deps.fromIslandId);
     }
 
-    return OVERWORLD_NODES.find((node) => this.isIslandUnlocked(node.islandId));
+    return this.nodes.find((node) => this.isIslandUnlocked(node.islandId));
   }
 
   private get currentRouteId(): string {
@@ -691,8 +702,8 @@ export class OverworldScene implements Scene {
   }
 
   private getShipPoint(): { x: number; y: number } {
-    const fromNode = OVERWORLD_NODES.find((node) => node.islandId === this.sailFromNodeId) ?? OVERWORLD_NODES[0];
-    const toNode = OVERWORLD_NODES.find((node) => node.islandId === this.selectedNodeId) ?? fromNode;
+    const fromNode = this.nodes.find((node) => node.islandId === this.sailFromNodeId) ?? this.nodes[0];
+    const toNode = this.nodes.find((node) => node.islandId === this.selectedNodeId) ?? fromNode;
 
     if (!fromNode || !toNode) {
       return { x: 72, y: 224 };
@@ -709,7 +720,7 @@ export class OverworldScene implements Scene {
   }
 
   private pickNode(x: number, y: number) {
-    return OVERWORLD_NODES.find((node) =>
+    return this.nodes.find((node) =>
       pointInRect(x, y, { x: node.x - 14, y: node.y - 14, w: 28, h: 28 }) &&
       (!node.secret || this.deps.progress.shipUpgrades.includes('ghostlight_lantern')),
     );

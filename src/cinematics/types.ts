@@ -1,3 +1,5 @@
+import type { AudioEvent } from '../audio/types';
+
 /**
  * Cinematic Engine — Types
  *
@@ -66,6 +68,12 @@ export interface CinematicBeat {
   shake?: number;
   /** If true, wait for tap instead of auto-advancing after durationS */
   waitForTap?: boolean;
+  /** Optional SFX event to play when this beat starts */
+  sfxEvent?: AudioEvent;
+  /** Optional encounter music preset key to apply when this beat starts */
+  musicPreset?: string;
+  /** Optional song ID to start playing when this beat begins */
+  songId?: string;
 }
 
 // ── Cinematic sequence ───────────────────────────────────────

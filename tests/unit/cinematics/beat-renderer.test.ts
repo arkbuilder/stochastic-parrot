@@ -235,15 +235,15 @@ describe('renderCharacter', () => {
   it('Kraken draws tentacles via quadraticCurveTo', () => {
     const ctx = makeCtx();
     renderCharacter(ctx, { id: 'kraken', x: 100, y: 200 }, 0);
-    // 4 tentacles → 4 quadraticCurveTo calls
-    expect((ctx.quadraticCurveTo as ReturnType<typeof vi.fn>).mock.calls.length).toBe(4);
+    // 6 tentacles → 6 quadraticCurveTo calls
+    expect((ctx.quadraticCurveTo as ReturnType<typeof vi.fn>).mock.calls.length).toBe(6);
   });
 
   it('Kraken draws a pulsing eye via arc', () => {
     const ctx = makeCtx();
     renderCharacter(ctx, { id: 'kraken', x: 100, y: 200 }, 0);
-    // Eye = 2 arcs (outer glow + pupil)
-    expect((ctx.arc as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2);
+    // 6 sucker dots + 3 bioluminescent spots + 3 eye arcs (glow, iris, pupil) = 12
+    expect((ctx.arc as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(10);
   });
 
   it('Kraken tentacles use pink/magenta (rgb 236,72,153)', () => {
@@ -262,6 +262,70 @@ describe('renderCharacter', () => {
     // rgba('#fbbf24', ...) → rgba(251,191,36,...)
     const hasGold = strs.some((s) => s.includes('251,191,36'));
     expect(hasGold).toBe(true);
+  });
+
+  it('Kraken has a cohesive violet mantle via ellipse', () => {
+    const ctx = makeCtx();
+    renderCharacter(ctx, { id: 'kraken', x: 100, y: 200 }, 0);
+    expect(ctx.ellipse).toHaveBeenCalledTimes(1);
+    // Mantle centred at (0, -18)
+    const [cx, cy, rx, ry] = (ctx.ellipse as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(cx).toBe(0);
+    expect(cy).toBe(-18);
+    expect(rx).toBe(14);
+    expect(ry).toBe(18);
+  });
+
+  it('Kraken mantle uses violet fill', () => {
+    const ctx = makeCtx();
+    renderCharacter(ctx, { id: 'kraken', x: 100, y: 200 }, 0);
+    const strs = ctx.__styles.fillStyles.filter((s): s is string => typeof s === 'string');
+    // rgba('#7c3aed', ...) → rgb(124,58,237)
+    const hasViolet = strs.some((s) => s.includes('124,58,237'));
+    expect(hasViolet).toBe(true);
+  });
+
+  it('Kraken has cyan bioluminescent spots', () => {
+    const ctx = makeCtx();
+    renderCharacter(ctx, { id: 'kraken', x: 100, y: 200 }, 0);
+    const strs = ctx.__styles.fillStyles.filter((s): s is string => typeof s === 'string');
+    // rgba('#22d3ee', ...) → rgb(34,211,238)
+    const hasCyan = strs.some((s) => s.includes('34,211,238'));
+    expect(hasCyan).toBe(true);
+  });
+
+  it('Kraken draws within a tight bounding box (no scatter)', () => {
+    const ctx = makeCtx();
+    renderCharacter(ctx, { id: 'kraken', x: 120, y: 140, scale: 1.3 }, 0);
+    // All arc calls should have coords within ±15 of origin x and -36..+30 of origin y
+    const arcCalls = (ctx.arc as ReturnType<typeof vi.fn>).mock.calls;
+    for (const [x, y] of arcCalls) {
+      expect(x).toBeGreaterThanOrEqual(-15);
+      expect(x).toBeLessThanOrEqual(15);
+      expect(y).toBeGreaterThanOrEqual(-36);
+      expect(y).toBeLessThanOrEqual(30);
+    }
+    // All quadraticCurveTo control/end points within ±15 x and -10..+35 y
+    const qCalls = (ctx.quadraticCurveTo as ReturnType<typeof vi.fn>).mock.calls;
+    for (const [cpx, cpy, ex, ey] of qCalls) {
+      expect(cpx).toBeGreaterThanOrEqual(-15);
+      expect(cpx).toBeLessThanOrEqual(15);
+      expect(cpy).toBeGreaterThanOrEqual(-10);
+      expect(cpy).toBeLessThanOrEqual(35);
+      expect(ex).toBeGreaterThanOrEqual(-15);
+      expect(ex).toBeLessThanOrEqual(15);
+      expect(ey).toBeGreaterThanOrEqual(-10);
+      expect(ey).toBeLessThanOrEqual(35);
+    }
+  });
+
+  it('Kraken has pink sucker dots on tentacles', () => {
+    const ctx = makeCtx();
+    renderCharacter(ctx, { id: 'kraken', x: 100, y: 200 }, 0);
+    const strs = ctx.__styles.fillStyles.filter((s): s is string => typeof s === 'string');
+    // rgba('#f472b6', ...) → rgb(244,114,182)
+    const hasSuckerPink = strs.some((s) => s.includes('244,114,182'));
+    expect(hasSuckerPink).toBe(true);
   });
 });
 

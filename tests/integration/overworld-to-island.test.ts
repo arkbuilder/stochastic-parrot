@@ -16,7 +16,7 @@ function makeDeps(overrides: Partial<Parameters<typeof OverworldScene['prototype
     progress: overrides.progress ?? makeProgress(['island_01'], ['island_01', 'island_02']),
     fromIslandId: overrides.fromIslandId ?? 'island_01',
     telemetry: { emit: () => undefined } as never,
-    audio: { setMusicLayers: () => undefined } as never,
+    audio: { setMusicLayers: () => undefined, play: () => undefined, playSong: () => undefined, selectIslandTheme: () => undefined, playFanfare: () => undefined, applyEncounterPreset: () => undefined, stopSong: () => undefined } as never,
     onIslandArrive: overrides.onIslandArrive ?? (() => undefined),
   };
 }

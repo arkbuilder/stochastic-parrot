@@ -25,8 +25,6 @@ import type { InputAction } from '../../../src/input/types';
 function defaultState(overrides: Partial<MenuState> = {}): MenuState {
   return {
     hasResumableSession: false,
-    baseCampaignComplete: false,
-    dlcPackCount: 2,
     hasBestiary: true,
     ...overrides,
   };
@@ -122,40 +120,19 @@ describe('computeMenuItems — IA structure', () => {
 
   // ── DLC / Expansions ──
 
-  it('IA7 — includes EXPANSIONS when dlcPackCount > 0', () => {
-    const items = computeMenuItems(defaultState({ dlcPackCount: 1 }));
+  it('IA7 — always includes STARBOARD LAUNCH (Rocket DLC)', () => {
+    const items = computeMenuItems(defaultState());
     expect(items.some((i) => i.id === 'expansions')).toBe(true);
+    const dlcItem = items.find((i) => i.id === 'expansions')!;
+    expect(dlcItem.label).toBe('STARBOARD LAUNCH');
+    expect(dlcItem.locked).toBe(false);
   });
 
-  it('IA8 — excludes EXPANSIONS when dlcPackCount is 0', () => {
-    const items = computeMenuItems(defaultState({ dlcPackCount: 0 }));
-    expect(items.some((i) => i.id === 'expansions')).toBe(false);
-  });
-
-  it('IA9 — EXPANSIONS is locked when baseCampaignComplete is false', () => {
-    const items = computeMenuItems(defaultState({ dlcPackCount: 2, baseCampaignComplete: false }));
-    const dlcItem = items.find((i) => i.id === 'expansions');
-    expect(dlcItem).toBeDefined();
-    expect(dlcItem!.locked).toBe(true);
-  });
-
-  it('IA10 — EXPANSIONS is unlocked when baseCampaignComplete is true', () => {
-    const items = computeMenuItems(defaultState({ dlcPackCount: 2, baseCampaignComplete: true }));
-    const dlcItem = items.find((i) => i.id === 'expansions');
-    expect(dlcItem).toBeDefined();
-    expect(dlcItem!.locked).toBe(false);
-  });
-
-  it('IA11 — locked EXPANSIONS has a non-empty hint', () => {
-    const items = computeMenuItems(defaultState({ dlcPackCount: 1, baseCampaignComplete: false }));
-    const dlcItem = items.find((i) => i.id === 'expansions');
-    expect(dlcItem!.hint.length).toBeGreaterThan(0);
-  });
-
-  it('IA12 — unlocked EXPANSIONS has an empty hint', () => {
-    const items = computeMenuItems(defaultState({ dlcPackCount: 1, baseCampaignComplete: true }));
-    const dlcItem = items.find((i) => i.id === 'expansions');
-    expect(dlcItem!.hint).toBe('');
+  it('IA8 — STARBOARD LAUNCH is never locked', () => {
+    const items = computeMenuItems(defaultState());
+    const dlcItem = items.find((i) => i.id === 'expansions')!;
+    expect(dlcItem.locked).toBe(false);
+    expect(dlcItem.hint).toBe('');
   });
 
   // ── Ordering ──
@@ -166,14 +143,14 @@ describe('computeMenuItems — IA structure', () => {
     expect(order.indexOf('resume')).toBeLessThan(order.indexOf('start'));
   });
 
-  it('IA14 — NEW VOYAGE comes before EXPANSIONS', () => {
-    const items = computeMenuItems(defaultState({ dlcPackCount: 1 }));
+  it('IA14 — NEW VOYAGE comes before STARBOARD LAUNCH', () => {
+    const items = computeMenuItems(defaultState());
     const order = ids(items);
     expect(order.indexOf('start')).toBeLessThan(order.indexOf('expansions'));
   });
 
-  it('IA15 — EXPANSIONS comes before LEADERBOARD', () => {
-    const items = computeMenuItems(defaultState({ dlcPackCount: 1 }));
+  it('IA15 — STARBOARD LAUNCH comes before LEADERBOARD', () => {
+    const items = computeMenuItems(defaultState());
     const order = ids(items);
     expect(order.indexOf('expansions')).toBeLessThan(order.indexOf('leaderboard'));
   });
@@ -187,32 +164,27 @@ describe('computeMenuItems — IA structure', () => {
   it('IA17 — full order with all items: resume → start → expansions → leaderboard → bestiary', () => {
     const items = computeMenuItems(defaultState({
       hasResumableSession: true,
-      dlcPackCount: 2,
       hasBestiary: true,
     }));
     expect(ids(items)).toEqual(['resume', 'start', 'expansions', 'leaderboard', 'bestiary']);
   });
 
-  it('IA18 — minimal order (no resume, no DLC, no bestiary): start → leaderboard', () => {
+  it('IA18 — minimal order (no resume, no bestiary): start → expansions → leaderboard', () => {
     const items = computeMenuItems(defaultState({
       hasResumableSession: false,
-      dlcPackCount: 0,
       hasBestiary: false,
     }));
-    expect(ids(items)).toEqual(['start', 'leaderboard']);
+    expect(ids(items)).toEqual(['start', 'expansions', 'leaderboard']);
   });
 
   // ── No locked items except expansions ──
 
-  it('IA19 — only EXPANSIONS can be locked; all other items are always unlocked', () => {
+  it('IA19 — no items are ever locked', () => {
     const items = computeMenuItems(defaultState({
       hasResumableSession: true,
-      dlcPackCount: 2,
-      baseCampaignComplete: false,
       hasBestiary: true,
     }));
     for (const item of items) {
-      if (item.id === 'expansions') continue;
       expect(item.locked).toBe(false);
     }
   });
@@ -222,7 +194,6 @@ describe('computeMenuItems — IA structure', () => {
   it('IA20 — every item has a non-empty label', () => {
     const items = computeMenuItems(defaultState({
       hasResumableSession: true,
-      dlcPackCount: 2,
       hasBestiary: true,
     }));
     for (const item of items) {
@@ -233,7 +204,7 @@ describe('computeMenuItems — IA structure', () => {
   // ── Idempotency ──
 
   it('IA21 — same state produces identical item list', () => {
-    const state = defaultState({ hasResumableSession: true, dlcPackCount: 1, baseCampaignComplete: true });
+    const state = defaultState({ hasResumableSession: true });
     const a = computeMenuItems(state);
     const b = computeMenuItems(state);
     expect(a).toEqual(b);
@@ -247,13 +218,13 @@ describe('computeMenuItems — IA structure', () => {
 
 describe('computeButtonRects — layout', () => {
   it('LY1 — returns one rect per item', () => {
-    const items = computeMenuItems(defaultState({ hasResumableSession: true, dlcPackCount: 1 }));
+    const items = computeMenuItems(defaultState({ hasResumableSession: true }));
     const rects = computeButtonRects(items);
     expect(rects.length).toBe(items.length);
   });
 
   it('LY2 — rects are vertically stacked (each y > previous y)', () => {
-    const items = computeMenuItems(defaultState({ hasResumableSession: true, dlcPackCount: 2, hasBestiary: true }));
+    const items = computeMenuItems(defaultState({ hasResumableSession: true, hasBestiary: true }));
     const rects = computeButtonRects(items);
     for (let i = 1; i < rects.length; i++) {
       expect(rects[i]!.y).toBeGreaterThan(rects[i - 1]!.y);
@@ -261,7 +232,7 @@ describe('computeButtonRects — layout', () => {
   });
 
   it('LY3 — no rects overlap vertically', () => {
-    const items = computeMenuItems(defaultState({ hasResumableSession: true, dlcPackCount: 2, hasBestiary: true }));
+    const items = computeMenuItems(defaultState({ hasResumableSession: true, hasBestiary: true }));
     const rects = computeButtonRects(items);
     for (let i = 1; i < rects.length; i++) {
       const prevBottom = rects[i - 1]!.y + rects[i - 1]!.h;
@@ -270,7 +241,7 @@ describe('computeButtonRects — layout', () => {
   });
 
   it('LY4 — primary items (resume, start) are taller than secondary items', () => {
-    const items = computeMenuItems(defaultState({ hasResumableSession: true, dlcPackCount: 1, hasBestiary: true }));
+    const items = computeMenuItems(defaultState({ hasResumableSession: true, hasBestiary: true }));
     const rects = computeButtonRects(items);
     const startRect = rects[items.findIndex((i) => i.id === 'start')]!;
     const leaderboardRect = rects[items.findIndex((i) => i.id === 'leaderboard')]!;
@@ -278,7 +249,7 @@ describe('computeButtonRects — layout', () => {
   });
 
   it('LY5 — all rects are within game canvas bounds (240×400)', () => {
-    const items = computeMenuItems(defaultState({ hasResumableSession: true, dlcPackCount: 2, hasBestiary: true }));
+    const items = computeMenuItems(defaultState({ hasResumableSession: true, hasBestiary: true }));
     const rects = computeButtonRects(items);
     for (const r of rects) {
       expect(r.x).toBeGreaterThanOrEqual(0);
@@ -289,7 +260,7 @@ describe('computeButtonRects — layout', () => {
   });
 
   it('LY6 — all rects have consistent width', () => {
-    const items = computeMenuItems(defaultState({ hasResumableSession: true, dlcPackCount: 2, hasBestiary: true }));
+    const items = computeMenuItems(defaultState({ hasResumableSession: true, hasBestiary: true }));
     const rects = computeButtonRects(items);
     const widths = new Set(rects.map((r) => r.w));
     expect(widths.size).toBe(1);
@@ -307,7 +278,7 @@ describe('MenuScene — interaction', () => {
   let state: MenuState;
 
   beforeEach(() => {
-    state = defaultState({ dlcPackCount: 2, hasBestiary: true });
+    state = defaultState({ hasBestiary: true });
     deps = defaultDeps({ getMenuState: () => state });
     scene = new MenuScene(deps);
     scene.enter({ now: () => 0 });
@@ -355,21 +326,9 @@ describe('MenuScene — interaction', () => {
     expect(deps.onResume).toHaveBeenCalled();
   });
 
-  // ── DLC locked interaction ──
+  // ── DLC interaction ──
 
-  it('IX5 — tap on locked EXPANSIONS does NOT call onExpansions', () => {
-    state.baseCampaignComplete = false;
-    const items = computeMenuItems(state);
-    const rects = computeButtonRects(items);
-    const dlcIdx = items.findIndex((i) => i.id === 'expansions');
-    const r = rects[dlcIdx]!;
-    const tap: InputAction = { type: 'primary', x: r.x + r.w / 2, y: r.y + r.h / 2 };
-    scene.update(0.016, [tap]);
-    expect(deps.onExpansions).not.toHaveBeenCalled();
-  });
-
-  it('IX6 — tap on unlocked EXPANSIONS calls onExpansions', () => {
-    state.baseCampaignComplete = true;
+  it('IX5 — tap on STARBOARD LAUNCH calls onExpansions', () => {
     const items = computeMenuItems(state);
     const rects = computeButtonRects(items);
     const dlcIdx = items.findIndex((i) => i.id === 'expansions');
@@ -377,18 +336,6 @@ describe('MenuScene — interaction', () => {
     const tap: InputAction = { type: 'primary', x: r.x + r.w / 2, y: r.y + r.h / 2 };
     scene.update(0.016, [tap]);
     expect(deps.onExpansions).toHaveBeenCalled();
-  });
-
-  it('IX7 — tapping locked EXPANSIONS twice does not call onExpansions', () => {
-    state.baseCampaignComplete = false;
-    const items = computeMenuItems(state);
-    const rects = computeButtonRects(items);
-    const dlcIdx = items.findIndex((i) => i.id === 'expansions');
-    const r = rects[dlcIdx]!;
-    const tap: InputAction = { type: 'primary', x: r.x + r.w / 2, y: r.y + r.h / 2 };
-    scene.update(0.016, [tap]);
-    scene.update(0.016, [tap]);
-    expect(deps.onExpansions).not.toHaveBeenCalled();
   });
 
   // ── Keyboard navigation ──
@@ -457,7 +404,7 @@ describe('MenuScene — interaction', () => {
 
 describe('MenuScene — rendering', () => {
   it('RN1 — render does not throw with default state', () => {
-    const state = defaultState({ dlcPackCount: 2, hasBestiary: true });
+    const state = defaultState({ hasBestiary: true });
     const deps = defaultDeps({ getMenuState: () => state });
     const scene = new MenuScene(deps);
     scene.enter({ now: () => 0 });
@@ -465,12 +412,11 @@ describe('MenuScene — rendering', () => {
     expect(() => scene.render(makeCtxStub())).not.toThrow();
   });
 
-  it('RN2 — render does not throw with locked DLC and hint active', () => {
-    const state = defaultState({ dlcPackCount: 2, baseCampaignComplete: false });
+  it('RN2 — render does not throw after tapping STARBOARD LAUNCH', () => {
+    const state = defaultState();
     const deps = defaultDeps({ getMenuState: () => state });
     const scene = new MenuScene(deps);
     scene.enter({ now: () => 0 });
-    // Trigger locked hint
     const items = computeMenuItems(state);
     const rects = computeButtonRects(items);
     const dlcIdx = items.findIndex((i) => i.id === 'expansions');
@@ -480,7 +426,7 @@ describe('MenuScene — rendering', () => {
   });
 
   it('RN3 — render does not throw with resume session', () => {
-    const state = defaultState({ hasResumableSession: true, dlcPackCount: 0, hasBestiary: false });
+    const state = defaultState({ hasResumableSession: true, hasBestiary: false });
     const deps = defaultDeps({ getMenuState: () => state });
     const scene = new MenuScene(deps);
     scene.enter({ now: () => 0 });
@@ -488,8 +434,8 @@ describe('MenuScene — rendering', () => {
     expect(() => scene.render(makeCtxStub())).not.toThrow();
   });
 
-  it('RN4 — render does not throw with minimal state (no resume, no dlc, no bestiary)', () => {
-    const state = defaultState({ hasResumableSession: false, dlcPackCount: 0, hasBestiary: false });
+  it('RN4 — render does not throw with minimal state (no resume, no bestiary)', () => {
+    const state = defaultState({ hasResumableSession: false, hasBestiary: false });
     const deps = defaultDeps({ getMenuState: () => state });
     const scene = new MenuScene(deps);
     scene.enter({ now: () => 0 });
@@ -500,90 +446,49 @@ describe('MenuScene — rendering', () => {
 
 
 // ═══════════════════════════════════════════════════════════════
-// SECTION 5: DLC hint timer behaviour
-// ═══════════════════════════════════════════════════════════════
-
-describe('MenuScene — DLC hint timer', () => {
-  it('HT1 — hint decays over time and eventually disappears', () => {
-    const state = defaultState({ dlcPackCount: 1, baseCampaignComplete: false });
-    const deps = defaultDeps({ getMenuState: () => state });
-    const scene = new MenuScene(deps);
-    scene.enter({ now: () => 0 });
-
-    // Trigger hint
-    const items = computeMenuItems(state);
-    const rects = computeButtonRects(items);
-    const dlcIdx = items.findIndex((i) => i.id === 'expansions');
-    const r = rects[dlcIdx]!;
-    scene.update(0.016, [{ type: 'primary', x: r.x + r.w / 2, y: r.y + r.h / 2 }]);
-
-    // Advance time past hint duration (2.5s)
-    scene.update(3.0, []);
-
-    // Render should not throw — hint should have faded
-    expect(() => scene.render(makeCtxStub())).not.toThrow();
-  });
-});
-
-
-// ═══════════════════════════════════════════════════════════════
-// SECTION 6: State permutation matrix
+// SECTION 5: State permutation matrix
 // ═══════════════════════════════════════════════════════════════
 
 describe('computeMenuItems — state permutations', () => {
   const booleans = [false, true];
-  const dlcCounts = [0, 1, 2];
 
   for (const hasResumableSession of booleans) {
-    for (const baseCampaignComplete of booleans) {
-      for (const dlcPackCount of dlcCounts) {
-        for (const hasBestiary of booleans) {
-          const label = `resume=${hasResumableSession} base=${baseCampaignComplete} dlc=${dlcPackCount} bestiary=${hasBestiary}`;
+    for (const hasBestiary of booleans) {
+      const label = `resume=${hasResumableSession} bestiary=${hasBestiary}`;
 
-          it(`PM — ${label}: returns valid items`, () => {
-            const state: MenuState = { hasResumableSession, baseCampaignComplete, dlcPackCount, hasBestiary };
-            const items = computeMenuItems(state);
+      it(`PM — ${label}: returns valid items`, () => {
+        const state: MenuState = { hasResumableSession, hasBestiary };
+        const items = computeMenuItems(state);
 
-            // Always at least start + leaderboard
-            expect(items.length).toBeGreaterThanOrEqual(2);
+        // Always at least start + expansions + leaderboard
+        expect(items.length).toBeGreaterThanOrEqual(3);
 
-            // No duplicates
-            const itemIds = ids(items);
-            expect(new Set(itemIds).size).toBe(itemIds.length);
+        // No duplicates
+        const itemIds = ids(items);
+        expect(new Set(itemIds).size).toBe(itemIds.length);
 
-            // Start and leaderboard always present
-            expect(itemIds).toContain('start');
-            expect(itemIds).toContain('leaderboard');
+        // Start, expansions, and leaderboard always present
+        expect(itemIds).toContain('start');
+        expect(itemIds).toContain('expansions');
+        expect(itemIds).toContain('leaderboard');
 
-            // Resume present iff hasResumableSession
-            expect(itemIds.includes('resume')).toBe(hasResumableSession);
+        // Resume present iff hasResumableSession
+        expect(itemIds.includes('resume')).toBe(hasResumableSession);
 
-            // Expansions present iff dlcPackCount > 0
-            expect(itemIds.includes('expansions')).toBe(dlcPackCount > 0);
+        // Bestiary present iff hasBestiary
+        expect(itemIds.includes('bestiary')).toBe(hasBestiary);
 
-            // Bestiary present iff hasBestiary
-            expect(itemIds.includes('bestiary')).toBe(hasBestiary);
+        // Expansions (Rocket DLC) is never locked
+        expect(items.find((i) => i.id === 'expansions')!.locked).toBe(false);
 
-            // If expansions present and base not complete, it's locked
-            if (dlcPackCount > 0 && !baseCampaignComplete) {
-              expect(items.find((i) => i.id === 'expansions')!.locked).toBe(true);
-            }
-
-            // If expansions present and base complete, it's unlocked
-            if (dlcPackCount > 0 && baseCampaignComplete) {
-              expect(items.find((i) => i.id === 'expansions')!.locked).toBe(false);
-            }
-
-            // Layout should produce valid rects
-            const rects = computeButtonRects(items);
-            expect(rects.length).toBe(items.length);
-            for (const r of rects) {
-              expect(r.w).toBeGreaterThan(0);
-              expect(r.h).toBeGreaterThan(0);
-            }
-          });
+        // Layout should produce valid rects
+        const rects = computeButtonRects(items);
+        expect(rects.length).toBe(items.length);
+        for (const r of rects) {
+          expect(r.w).toBeGreaterThan(0);
+          expect(r.h).toBeGreaterThan(0);
         }
-      }
+      });
     }
   }
 });

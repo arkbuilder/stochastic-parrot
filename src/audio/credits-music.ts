@@ -1,4 +1,8 @@
 /**
+ * @deprecated Superseded by SolavineSound engine (`src/audio/solavine/`).
+ * AudioManager now delegates DLC credits music to `playSong('overworld')`.
+ * Kept for reference / test coverage of the original melody data.
+ *
  * Credits Music — "Homeward Stars"
  *
  * A warm, emotional oscillator-based melody for the DLC credits scene.

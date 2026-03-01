@@ -11,6 +11,7 @@
 import type { Scene, SceneContext } from '../core/types';
 import type { InputAction } from '../input/types';
 import type { CinematicSequence } from './types';
+import type { AudioManager } from '../audio/audio-manager';
 import { renderBeat, renderTapPrompt } from './beat-renderer';
 
 const TYPE_SPEED_MS = 30;       // normal typewriter speed
@@ -32,6 +33,7 @@ export class CinematicScene implements Scene {
   constructor(
     private readonly sequence: CinematicSequence,
     private readonly onDone: () => void,
+    private readonly audio?: AudioManager,
   ) {}
 
   get currentBeatIndex(): number { return this.beatIndex; }
@@ -47,6 +49,7 @@ export class CinematicScene implements Scene {
     this.transitioning = false;
     this.transitionTimer = 0;
     this.finished = false;
+    this.playBeatAudio();
   }
 
   exit(): void {}
@@ -152,5 +155,23 @@ export class CinematicScene implements Scene {
     this.typewriterProgress = 0;
     this.fastMode = false;
     this.beatTextDone = false;
+    this.playBeatAudio();
+  }
+
+  /** Play SFX / apply music preset for the current beat if audio is wired. */
+  private playBeatAudio(): void {
+    if (!this.audio) return;
+    const beat = this.sequence.beats[this.beatIndex];
+    if (!beat) return;
+
+    if (beat.sfxEvent) {
+      this.audio.play(beat.sfxEvent);
+    }
+    if (beat.musicPreset) {
+      this.audio.applyEncounterPreset(beat.musicPreset);
+    }
+    if (beat.songId) {
+      this.audio.playSong(beat.songId);
+    }
   }
 }

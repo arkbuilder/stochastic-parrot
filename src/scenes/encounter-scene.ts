@@ -93,7 +93,8 @@ export class EncounterScene implements Scene {
     this.promptFailStreak = 0;
     this.retryCooldownMs = 0;
 
-    this.deps.audio.setMusicLayers(['base', 'tension']);
+    this.deps.audio.applyEncounterPreset('encounter_start');
+    this.deps.audio.playSong('combat');
     this.deps.telemetry.emit(TELEMETRY_EVENTS.encounterStarted, {
       island_id: this.data.islandId,
       encounter_type: this.data.encounterType,
@@ -404,7 +405,8 @@ export class EncounterScene implements Scene {
 
   private handleEncounterFail(reason: 'fog_engulf' | 'storm_damage' | 'battle_sunk'): void {
     this.retryCooldownMs = DEFAULT_RETRY_COOLDOWN_MS;
-    this.deps.audio.play(AudioEvent.RecallTimeout);
+    this.deps.audio.play(AudioEvent.FailStateRumble);
+    this.deps.audio.applyEncounterPreset('encounter_failure');
     this.deps.telemetry.emit(TELEMETRY_EVENTS.retryStart, {
       island_id: this.data.islandId,
       reason,
@@ -915,6 +917,7 @@ export class EncounterScene implements Scene {
     }
 
     this.resolved = true;
+    this.deps.audio.applyEncounterPreset('encounter_victory');
     const maxPossible = computeMaxPromptScore(this.recallState.prompts.length) + 500;
     const deadReckonerBonus = this.data.encounterType === 'squid' && this.expertEligible ? 2000 : 0;
     const score = computeIslandScore(this.recallState.totalScore, 0, this.expertEligible) + deadReckonerBonus;

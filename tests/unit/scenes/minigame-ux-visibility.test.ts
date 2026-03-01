@@ -119,6 +119,11 @@ function stubAudio() {
     play: vi.fn(),
     setMusicLayers: vi.fn(),
     resume: vi.fn(),
+    playSong: vi.fn(),
+    selectIslandTheme: vi.fn(),
+    playFanfare: vi.fn(),
+    applyEncounterPreset: vi.fn(),
+    stopSong: vi.fn(),
   } as any;
 }
 

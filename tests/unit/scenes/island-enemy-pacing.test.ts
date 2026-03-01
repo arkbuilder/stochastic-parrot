@@ -13,7 +13,7 @@ function stubDeps(islandId: string) {
     islandId,
     onThreatTriggered: vi.fn(),
     telemetry: { send: vi.fn() } as any,
-    audio: { play: vi.fn(), setMusicLayers: vi.fn(), resume: vi.fn() } as any,
+    audio: { play: vi.fn(), setMusicLayers: vi.fn(), resume: vi.fn(), playSong: vi.fn(), selectIslandTheme: vi.fn(), playFanfare: vi.fn(), applyEncounterPreset: vi.fn(), stopSong: vi.fn() } as any,
   };
 }
 

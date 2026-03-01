@@ -10,6 +10,7 @@ import { MenuScene } from './scenes/menu-scene';
 import { StateMachine } from './core/state-machine';
 import { EncounterScene } from './scenes/encounter-scene';
 import { IslandScene } from './scenes/island-scene';
+import { createSkillTree, type SkillTreeState } from './systems/skill-tree';
 import { RewardScene } from './scenes/reward-scene';
 import { OverworldScene } from './scenes/overworld-scene';
 import { LeaderboardScene } from './scenes/leaderboard-scene';
@@ -34,13 +35,18 @@ import { GAME_OVER_CINEMATIC } from './cinematics/game-over-cinematics';
 import { BestiaryScene } from './scenes/bestiary-scene';
 import { ConceptMinigameScene } from './scenes/concept-minigame-scene';
 import { getConceptMinigame } from './data/concept-minigames';
-import { listDlcPacks, getDlcCount } from './dlc/dlc-registry';
-import { isBaseCampaignComplete } from './dlc/dlc-unlock';
+import { registerDlcPack, listDlcPacks } from './dlc/dlc-registry';
 import { IntroScene } from './scenes/intro-scene';
 import { DlcCreditsScene } from './scenes/dlc-credits-scene';
-import { CreditsMusic } from './audio/credits-music';
 import { AudioEvent } from './audio/types';
 import type { AccessibilitySettings, ConceptMasteryState, MasteryLevel, SessionSave } from './persistence/types';
+import { ROCKET_SCIENCE_PACK } from './dlc/packs/rocket-science-pack';
+import { CYBERSECURITY_PACK } from './dlc/packs/cybersecurity-pack';
+import {
+  mergeDlcIntoGameData, getAllIslands, getAllConcepts,
+  getAllOverworldNodes, findIsland as findIslandInGameData,
+  findMinigameByConceptId,
+} from './data/game-data';
 
 type DebugController = {
   completeEncoding: () => void;
@@ -57,16 +63,10 @@ type IslandResult = {
 };
 
 /**
- * Look up a minigame by concept ID — searches base pack then all registered DLC packs.
+ * Look up a minigame by concept ID — searches base + all merged DLC data.
  */
 function findMinigame(conceptId: string) {
-  const base = getConceptMinigame(conceptId);
-  if (base) return base;
-  for (const pack of listDlcPacks()) {
-    const found = pack.content.minigames.find((mg) => mg.conceptId === conceptId);
-    if (found) return found;
-  }
-  return undefined;
+  return findMinigameByConceptId(conceptId);
 }
 
 const PLAYER_ID = 'player_local';
@@ -92,6 +92,13 @@ const audioManager = new AudioManager();
 const telemetry = new TelemetryClient(new ConsoleSink());
 const apiClient = new ApiClient();
 const localStore = new LocalStore();
+
+// ── Register DLC packs at startup ──
+registerDlcPack(ROCKET_SCIENCE_PACK);
+registerDlcPack(CYBERSECURITY_PACK);
+mergeDlcIntoGameData(ROCKET_SCIENCE_PACK);
+mergeDlcIntoGameData(CYBERSECURITY_PACK);
+
 const debugController: DebugController = {
   completeEncoding: () => undefined,
   winEncounter: () => undefined,
@@ -136,6 +143,9 @@ const progressState = {
   conceptRecallCounts: new Map<string, number>(),
 };
 
+/** Persistent skill tree state shared across all islands */
+const skillTreeState: SkillTreeState = createSkillTree();
+
 let activeIslandStartMs = 0;
 let accessibilitySettings: AccessibilitySettings = localStore.loadAccessibilitySettings();
 const conceptMasteryById = new Map<string, ConceptMasteryState>(
@@ -150,7 +160,7 @@ function allMainExpertBonusesEarned(): boolean {
 function getUnlockedIslands(): string[] {
   const unlocked: string[] = [];
 
-  for (const island of ISLANDS) {
+  for (const island of getAllIslands()) {
     if (island.id === 'hidden_reef') {
       if (progressState.shipUpgrades.has('ghostlight_lantern') && progressState.completedIslands.has('island_05')) {
         unlocked.push(island.id);
@@ -225,7 +235,7 @@ function setMasteryLevel(conceptId: string, level: MasteryLevel, recallCount?: n
 }
 
 function markIslandConceptsDiscovered(islandId: string): void {
-  const island = ISLANDS.find((entry) => entry.id === islandId);
+  const island = findIslandInGameData(islandId);
   if (!island) {
     return;
   }
@@ -236,7 +246,7 @@ function markIslandConceptsDiscovered(islandId: string): void {
 }
 
 function getConceptJournalEntries(): ConceptJournalEntry[] {
-  return CONCEPTS.map((concept) => {
+  return getAllConcepts().map((concept) => {
     const mastery = conceptMasteryById.get(concept.id);
     return {
       conceptId: concept.id,
@@ -292,7 +302,7 @@ function goToMenu(): void {
   (window as Window & { __dr_scene?: string }).__dr_scene = 'menu';
 }
 
-function goToOverworld(fromIslandId?: string): void {
+function goToOverworld(fromIslandId?: string, nodesOverride?: import('./data/progression').OverworldNodeConfig[]): void {
   if (stateMachine.current === 'menu' || stateMachine.current === 'pause') {
     transitionState('play', 'overworld_open');
   }
@@ -300,6 +310,7 @@ function goToOverworld(fromIslandId?: string): void {
   const overworldScene = new OverworldScene({
     progress: getOverworldProgressSnapshot(),
     fromIslandId,
+    nodes: nodesOverride ?? getAllOverworldNodes() as import('./data/progression').OverworldNodeConfig[],
     telemetry,
     audio: audioManager,
     onIslandArrive: (islandId) => {
@@ -308,7 +319,7 @@ function goToOverworld(fromIslandId?: string): void {
         const introScene = new CinematicScene(cinematics.intro, () => {
           sceneManager.pop();
           startIsland(islandId);
-        });
+        }, audioManager);
         sceneManager.push(introScene);
       } else {
         startIsland(islandId);
@@ -553,9 +564,15 @@ function applyRewardLocally(reward: RewardData): void {
 }
 
 function buildSquidEncounterData(base: EncounterStartData): EncounterStartData {
-  const sourceConcepts = CONCEPTS.filter(
+  // For DLC squid encounters, source concepts from DLC islands
+  const isDlcIsland = base.islandId.startsWith('dlc_');
+  const relevantIslandIds = isDlcIsland
+    ? getAllIslands().filter((i) => i.id.startsWith('dlc_')).map((i) => i.id)
+    : MAIN_ISLAND_IDS;
+
+  const sourceConcepts = getAllConcepts().filter(
     (concept) =>
-      MAIN_ISLAND_IDS.includes(concept.islandId) &&
+      relevantIslandIds.includes(concept.islandId) &&
       (progressState.completedIslands.has(concept.islandId) || concept.islandId === base.islandId),
   ).slice(0, 5);
 
@@ -608,25 +625,17 @@ function isDlcRocketComplete(reward: RewardData): boolean {
 }
 
 function launchDlcCredits(): void {
-  let creditsMusic: CreditsMusic | null = null;
-
   const creditsScene = new DlcCreditsScene({
     onDone: () => {
-      creditsMusic?.stop();
-      creditsMusic = null;
+      audioManager.stopSong();
       sceneManager.pop();
       goToLeaderboard();
     },
     onEnter: () => {
-      // Start the special credits music via the AudioManager's context
       try {
         void audioManager.resume();
-        const ctx = (audioManager as unknown as { context: AudioContext | null }).context;
-        const dest = (audioManager as unknown as { musicGain: GainNode | null }).musicGain;
-        if (ctx && dest) {
-          creditsMusic = new CreditsMusic(ctx, dest);
-          creditsMusic.start();
-        }
+        audioManager.setMusicLayers(['base', 'resolution']);
+        audioManager.playSong('overworld');
       } catch {
         // Audio unavailable — credits still work without music
       }
@@ -705,7 +714,7 @@ function resumeSavedSession(): void {
             const gameOverScene = new CinematicScene(GAME_OVER_CINEMATIC, () => {
               sceneManager.pop();
               goToLeaderboard();
-            });
+            }, audioManager);
             sceneManager.push(gameOverScene);
             return;
           }
@@ -716,7 +725,7 @@ function resumeSavedSession(): void {
               const outroScene = new CinematicScene(outroData.outro, () => {
                 sceneManager.pop();
                 launchDlcCredits();
-              });
+              }, audioManager);
               sceneManager.push(outroScene);
             } else {
               launchDlcCredits();
@@ -729,7 +738,7 @@ function resumeSavedSession(): void {
             const outroScene = new CinematicScene(outroData.outro, () => {
               sceneManager.pop();
               goToOverworld(reward.islandId);
-            });
+            }, audioManager);
             sceneManager.push(outroScene);
           } else {
             goToOverworld(reward.islandId);
@@ -758,6 +767,7 @@ function startIsland(islandId: string): void {
     telemetry,
     audio: audioManager,
     performance: buildPerformanceSnapshot(),
+    skillTree: skillTreeState,
     onPause: () => {
       openPauseMenu(() => {
         saveSessionState(null);
@@ -841,7 +851,7 @@ function startIsland(islandId: string): void {
                 const gameOverScene = new CinematicScene(GAME_OVER_CINEMATIC, () => {
                   sceneManager.pop();
                   goToLeaderboard();
-                });
+                }, audioManager);
                 sceneManager.push(gameOverScene);
                 return;
               }
@@ -852,7 +862,7 @@ function startIsland(islandId: string): void {
                   const outroScene = new CinematicScene(outroData.outro, () => {
                     sceneManager.pop();
                     launchDlcCredits();
-                  });
+                  }, audioManager);
                   sceneManager.push(outroScene);
                 } else {
                   launchDlcCredits();
@@ -865,7 +875,7 @@ function startIsland(islandId: string): void {
                 const outroScene = new CinematicScene(outroData.outro, () => {
                   sceneManager.pop();
                   goToOverworld(reward.islandId);
-                });
+                }, audioManager);
                 sceneManager.push(outroScene);
               } else {
                 goToOverworld(reward.islandId);
@@ -912,16 +922,15 @@ const menuScene = new MenuScene({
     goToBestiary();
   },
   onExpansions: () => {
-    // Navigate to overworld which will show DLC islands when unlocked
+    // Navigate to overworld showing only DLC islands
     if (stateMachine.current === 'menu') {
       transitionState('play', 'menu_expansions_pressed');
     }
-    goToOverworld();
+    const dlcNodes = getAllOverworldNodes().filter((n) => n.islandId.startsWith('dlc_'));
+    goToOverworld(undefined, dlcNodes.length > 0 ? dlcNodes : undefined);
   },
   getMenuState: () => ({
     hasResumableSession: resumableSession !== null,
-    baseCampaignComplete: isBaseCampaignComplete(Array.from(progressState.completedIslands)),
-    dlcPackCount: getDlcCount(),
     hasBestiary: true,
   }),
 });

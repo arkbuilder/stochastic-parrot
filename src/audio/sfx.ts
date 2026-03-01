@@ -1,3 +1,8 @@
+/**
+ * @deprecated Superseded by SolavineSound SFX library (`src/audio/solavine/sfx-library.ts`).
+ * AudioManager now delegates SFX to SolavineEngine.playSfx().
+ * Kept for reference.
+ */
 import { AudioEvent } from './types';
 
 export class SfxEngine {

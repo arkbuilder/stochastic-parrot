@@ -13,15 +13,21 @@ import type { Scene, SceneContext } from '../core/types';
 import { GAME_WIDTH, GAME_HEIGHT } from '../core/types';
 import type { InputAction } from '../input/types';
 import { TOKENS } from '../rendering/tokens';
-import { BESTIARY, CRITTERS, THREATS, FLORA, TERRAIN, type BestiaryEntry } from '../data/bestiary';
+import { type BestiaryEntry } from '../data/bestiary';
+import {
+  getAllBestiary, getBaseBestiary, getDlcBestiary, getMergedDlcIds,
+} from '../data/game-data';
 import { drawSkyGradient, drawVignette, drawStars, drawButton, roundRect, rgba, drawEnemy, drawOceanGradient, drawFlora, drawTerrain } from '../rendering/draw';
 
 type ViewMode = 'list' | 'detail';
 type Tab = 'critters' | 'threats' | 'flora' | 'terrain';
+/** 'all' = merged, 'base' = base game only, or a DLC manifest ID */
+type BestiarySource = 'all' | 'base' | string;
 
 interface Rect { x: number; y: number; w: number; h: number }
 
 const BACK_BUTTON: Rect = { x: 8, y: 8, w: 52, h: 24 };
+const SOURCE_BUTTON: Rect = { x: 140, y: 8, w: 92, h: 24 };
 const TAB_CRITTERS: Rect = { x: 8, y: 40, w: 54, h: 24 };
 const TAB_THREATS: Rect = { x: 65, y: 40, w: 54, h: 24 };
 const TAB_FLORA: Rect = { x: 122, y: 40, w: 54, h: 24 };
@@ -41,6 +47,7 @@ export class BestiaryScene implements Scene {
   private elapsed = 0;
   private mode: ViewMode = 'list';
   private tab: Tab = 'critters';
+  private source: BestiarySource = 'all';
   private selectedIndex = 0;
   private scrollOffset = 0;
   private detailEntry: BestiaryEntry | null = null;
@@ -94,6 +101,7 @@ export class BestiaryScene implements Scene {
     // Tap-based navigation
     if (!Number.isNaN(action.x)) {
       if (isHit(action, BACK_BUTTON)) { this.onBack(); return; }
+      if (isHit(action, SOURCE_BUTTON)) { this.cycleSource(); return; }
       if (isHit(action, TAB_CRITTERS)) { this.switchTab('critters'); return; }
       if (isHit(action, TAB_THREATS)) { this.switchTab('threats'); return; }
       if (isHit(action, TAB_FLORA)) { this.switchTab('flora'); return; }
@@ -170,6 +178,12 @@ export class BestiaryScene implements Scene {
   private renderList(ctx: CanvasRenderingContext2D, t: number): void {
     // Back button
     drawButton(ctx, BACK_BUTTON.x, BACK_BUTTON.y, BACK_BUTTON.w, BACK_BUTTON.h, 'BACK', false, 8);
+
+    // Source toggle (only show if DLC content exists)
+    if (getMergedDlcIds().length > 0) {
+      const sourceLabel = this.getSourceLabel();
+      drawButton(ctx, SOURCE_BUTTON.x, SOURCE_BUTTON.y, SOURCE_BUTTON.w, SOURCE_BUTTON.h, sourceLabel, true, 8);
+    }
 
     // Tabs
     this.renderTab(ctx, TAB_CRITTERS, 'CRITTERS', this.tab === 'critters');
@@ -363,10 +377,36 @@ export class BestiaryScene implements Scene {
   // ── Helpers ─────────────────────────────────────────────────
 
   private currentEntries(): BestiaryEntry[] {
-    if (this.tab === 'critters') return CRITTERS;
-    if (this.tab === 'threats') return THREATS;
-    if (this.tab === 'flora') return FLORA;
-    return TERRAIN;
+    const pool = this.getSourcePool();
+    if (this.tab === 'critters') return pool.filter((e) => e.category === 'critter');
+    if (this.tab === 'threats') return pool.filter((e) => e.category === 'threat');
+    if (this.tab === 'flora') return pool.filter((e) => e.category === 'flora');
+    return pool.filter((e) => e.category === 'terrain');
+  }
+
+  /** Get the bestiary pool based on the current source selector */
+  private getSourcePool(): readonly BestiaryEntry[] {
+    if (this.source === 'all') return getAllBestiary();
+    if (this.source === 'base') return getBaseBestiary();
+    return getDlcBestiary(this.source);
+  }
+
+  /** Cycle source: all → base → dlc1 → dlc2 → ... → all */
+  private cycleSource(): void {
+    const dlcIds = getMergedDlcIds();
+    const sources: BestiarySource[] = ['all', 'base', ...dlcIds];
+    const currentIdx = sources.indexOf(this.source);
+    this.source = sources[(currentIdx + 1) % sources.length] ?? 'all';
+    this.selectedIndex = 0;
+    this.scrollOffset = 0;
+  }
+
+  /** Human-readable label for the current source */
+  private getSourceLabel(): string {
+    if (this.source === 'all') return '▸ ALL';
+    if (this.source === 'base') return '▸ BASE';
+    // DLC ID → short display name (e.g. 'rocket-science' → 'ROCKET')
+    return '▸ ' + this.source.split('-')[0]!.toUpperCase();
   }
 
   private switchTab(tab: Tab): void {

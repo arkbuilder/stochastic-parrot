@@ -1,104 +1,119 @@
+/**
+ * AudioManager — thin adapter over SolavineEngine.
+ *
+ * Public API is a superset of the old AudioManager so every existing
+ * scene can keep calling `play(AudioEvent.X)` and `setMusicLayers(...)`.
+ *
+ * New capabilities exposed:
+ *   - `playSong(id)` — start a named procedural song
+ *   - `selectIslandTheme(islandId)` — convenience for island songs
+ *   - `applyEncounterPreset(key)` — set layers via encounter preset
+ *   - `playFanfare(id)` — play a non-looping fanfare
+ *   - `stopSong()` — stop current song
+ */
 import { AudioEvent, type MusicLayerName } from './types';
-import { SfxEngine } from './sfx';
-import { MusicLayerEngine } from './music-layer';
+import { SolavineEngine, SolavineEvent } from './solavine';
+
+/**
+ * Build a lookup from AudioEvent string value → SolavineEvent enum member.
+ * Because both enums share identical string values this is a direct map.
+ */
+const EVENT_MAP: Record<string, SolavineEvent> = (() => {
+  const map: Record<string, SolavineEvent> = {};
+  for (const key of Object.keys(SolavineEvent) as Array<keyof typeof SolavineEvent>) {
+    const value = SolavineEvent[key];
+    map[value] = value as SolavineEvent;
+  }
+  return map;
+})();
 
 export class AudioManager {
-  private context: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
-  private musicGain: GainNode | null = null;
-  private sfxGain: GainNode | null = null;
-  private sfx: SfxEngine | null = null;
-  private music: MusicLayerEngine | null = null;
-  private muted = false;
-  private masterVolume = 0.6;
-  private musicVolume = 0.5;
-  private sfxVolume = 0.6;
+  private engine = new SolavineEngine();
+
+  /* ── Lifecycle ── */
 
   initialize(): void {
-    if (this.context) {
-      return;
-    }
-
-    this.context = new AudioContext();
-    this.masterGain = this.context.createGain();
-    this.musicGain = this.context.createGain();
-    this.sfxGain = this.context.createGain();
-
-    this.masterGain.gain.value = this.muted ? 0 : this.masterVolume;
-    this.musicGain.gain.value = this.musicVolume;
-    this.sfxGain.gain.value = this.sfxVolume;
-
-    this.musicGain.connect(this.masterGain);
-    this.sfxGain.connect(this.masterGain);
-    this.masterGain.connect(this.context.destination);
-
-    this.sfx = new SfxEngine(this.context, this.sfxGain);
-    this.music = new MusicLayerEngine(this.context, this.musicGain);
-    this.music.start();
+    this.engine.initialize();
   }
 
   async resume(): Promise<void> {
-    if (!this.context) {
-      this.initialize();
-    }
+    await this.engine.resume();
+  }
 
-    if (this.context && this.context.state !== 'running') {
-      await this.context.resume();
+  dispose(): void {
+    this.engine.dispose();
+  }
+
+  /* ── SFX ── */
+
+  /** Play a one-shot SFX by AudioEvent or SolavineEvent key. */
+  play(event: AudioEvent): void {
+    const solavineEvent = EVENT_MAP[event as string];
+    if (solavineEvent) {
+      this.engine.playSfx(solavineEvent);
     }
   }
+
+  /* ── Adaptive Music Layers ── */
 
   setMusicLayers(layers: MusicLayerName[]): void {
-    this.music?.transition(layers);
+    // MusicLayerName is now a subset of SolavineMusicLayer — cast is safe
+    this.engine.setMusicLayers(layers);
   }
 
-  play(event: AudioEvent): void {
-    this.sfx?.play(event);
+  /* ── Song Playback (new) ── */
+
+  /** Start a named song (e.g. 'island_01', 'overworld', 'combat'). */
+  playSong(songId: string): void {
+    this.engine.playSong(songId);
   }
+
+  /** Select the song matching an island ID (shorthand for playSong). */
+  selectIslandTheme(islandId: string): void {
+    this.engine.selectIslandTheme(islandId);
+  }
+
+  /** Apply an encounter music preset by key (sets layers automatically). */
+  applyEncounterPreset(presetKey: string): void {
+    this.engine.applyEncounterPreset(presetKey);
+  }
+
+  /** Play a non-looping fanfare by ID. */
+  playFanfare(fanfareId: string): void {
+    this.engine.playSong(fanfareId);
+  }
+
+  /** Stop the current song / fanfare. */
+  stopSong(): void {
+    this.engine.stopSong();
+  }
+
+  /* ── Volume Controls ── */
 
   setMuted(muted: boolean): void {
-    this.muted = muted;
-    this.syncVolumes();
+    this.engine.setMuted(muted);
   }
 
   setMasterVolume(value: number): void {
-    this.masterVolume = clamp01(value);
-    this.syncVolumes();
+    this.engine.setMasterVolume(value);
   }
 
   setMusicVolume(value: number): void {
-    this.musicVolume = clamp01(value);
-    this.syncVolumes();
+    this.engine.setMusicVolume(value);
   }
 
   setSfxVolume(value: number): void {
-    this.sfxVolume = clamp01(value);
-    this.syncVolumes();
+    this.engine.setSfxVolume(value);
   }
 
-  getSnapshot(): { muted: boolean; masterVolume: number; musicVolume: number; sfxVolume: number } {
-    return {
-      muted: this.muted,
-      masterVolume: this.masterVolume,
-      musicVolume: this.musicVolume,
-      sfxVolume: this.sfxVolume,
-    };
+  getSnapshot(): {
+    muted: boolean;
+    masterVolume: number;
+    musicVolume: number;
+    sfxVolume: number;
+    currentSong: string | null;
+    activeLayers: string[];
+  } {
+    return this.engine.getSnapshot();
   }
-
-  private syncVolumes(): void {
-    if (this.masterGain) {
-      this.masterGain.gain.value = this.muted ? 0 : this.masterVolume;
-    }
-
-    if (this.musicGain) {
-      this.musicGain.gain.value = this.musicVolume;
-    }
-
-    if (this.sfxGain) {
-      this.sfxGain.gain.value = this.sfxVolume;
-    }
-  }
-}
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
 }

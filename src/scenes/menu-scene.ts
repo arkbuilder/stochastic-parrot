@@ -24,8 +24,6 @@ export interface MenuItemConfig {
  */
 export interface MenuState {
   hasResumableSession: boolean;
-  baseCampaignComplete: boolean;
-  dlcPackCount: number;
   hasBestiary: boolean;
 }
 
@@ -68,17 +66,8 @@ export function computeMenuItems(state: MenuState): MenuItemConfig[] {
 
   items.push({ id: 'start', label: 'NEW VOYAGE', locked: false, hint: '' });
 
-  if (state.dlcPackCount > 0) {
-    const locked = !state.baseCampaignComplete;
-    items.push({
-      id: 'expansions',
-      label: locked ? 'EXPANSIONS' : 'EXPANSIONS',
-      locked,
-      hint: locked
-        ? 'Complete all 5 islands to unlock!'
-        : '',
-    });
-  }
+  // Rocket DLC — always accessible from main menu
+  items.push({ id: 'expansions', label: 'STARBOARD LAUNCH', locked: false, hint: '' });
 
   items.push({ id: 'leaderboard', label: 'LEADERBOARD', locked: false, hint: '' });
 

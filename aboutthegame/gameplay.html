@@ -103,6 +103,171 @@
     </div>
   </section>
 
+  <!-- ═══ Combat System ═══ -->
+  <section class="section">
+    <h2 class="section-title">Combat System</h2>
+    <p class="section-subtitle">Pokémon-style turn-based battles against island creatures</p>
+
+    <div class="features-row">
+      <div class="feature-text">
+        <h3>Charge-meter combat</h3>
+        <p>
+          While exploring islands, you'll encounter enemies — crabs, jellyfish, burrowers, and more.
+          Touching an enemy triggers a <strong>turn-based combat overlay</strong> inspired by classic Pokémon battles.
+          You have two options each turn:
+        </p>
+        <ul>
+          <li><strong>ATTACK</strong> — instant strike dealing ~34% of enemy HP</li>
+          <li><strong>CHARGE</strong> — hold the button to fill a power meter, then release for up to 2× damage. Time it right for maximum impact.</li>
+        </ul>
+        <p style="margin-top: var(--space-sm);">
+          After your turn, the enemy retaliates. Three well-placed attacks defeat most enemies.
+          On victory, your HP refills and you earn <strong>+100 bonus points</strong> plus a <strong>Skill Point</strong>.
+        </p>
+      </div>
+      <div>
+        <div class="card" style="border-color: var(--red);">
+          <span class="card-icon">⚔️</span>
+          <h3>Risk vs Reward</h3>
+          <p>Quick attacks are safe but slow. Charged attacks are devastating but leave you vulnerable if you mistime. The charge meter fills over 1.2 seconds — overshoot and you waste a turn.</p>
+          <p style="margin-top: var(--space-sm); color: var(--yellow);">Master the charge timing for one-shot kills with the right skill upgrades.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Skill Tree ═══ -->
+  <section class="section">
+    <h2 class="section-title">Skill Tree</h2>
+    <p class="section-subtitle">Earn Skill Points through combat and learning — invest them to power up</p>
+
+    <div class="card-grid">
+      <div class="card" style="border-top: 3px solid var(--red);">
+        <span class="card-icon">⚔️</span>
+        <h3>Sharp Cutlass</h3>
+        <p>+20% attack damage per level. 3 levels available. The foundation of the Offence branch — makes every strike hit harder.</p>
+        <span class="card-tag tag-easy">Offence · Cost: 1 SP</span>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--cyan);">
+        <span class="card-icon">⛨</span>
+        <h3>Iron Hull</h3>
+        <p>-20% damage taken per level. 3 levels available. The foundation of the Defence branch — each enemy hit stings less.</p>
+        <span class="card-tag tag-easy">Defence · Cost: 1 SP</span>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--yellow);">
+        <span class="card-icon">⚡</span>
+        <h3>Swift Charge</h3>
+        <p>+20% charge speed per level. Fills the power meter faster, letting you execute devastating charged attacks more quickly.</p>
+        <span class="card-tag tag-medium">Offence · Cost: 2 SP</span>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--green);">
+        <span class="card-icon">❤️</span>
+        <h3>Sea Legs</h3>
+        <p>+10% max HP per level. More staying power in extended fights. Stack with Iron Hull for near-invulnerability.</p>
+        <span class="card-tag tag-medium">Defence · Cost: 1 SP</span>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--violet);">
+        <span class="card-icon">🌩️</span>
+        <h3>Thunder Strike</h3>
+        <p>+0.5 maximum charge multiplier per level. At max level, a fully charged attack deals 3× base damage — enough to one-shot most enemies.</p>
+        <span class="card-tag tag-boss">Offence · Cost: 2 SP</span>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--yellow);">
+        <span class="card-icon">💰</span>
+        <h3>Plunder</h3>
+        <p>+50 victory points per level. Turn every combat victory into a score multiplier. Chase the leaderboard with maxed Plunder.</p>
+        <span class="card-tag tag-medium">Offence · Cost: 2 SP</span>
+      </div>
+    </div>
+
+    <div class="features-row" style="margin-top: var(--space-xl);">
+      <div class="feature-text">
+        <h3>Earning Skill Points</h3>
+        <p>Skill Points are earned through two activities:</p>
+        <ul>
+          <li><strong>+1 SP</strong> for defeating an enemy in combat</li>
+          <li><strong>+1 SP</strong> for placing a concept at its landmark</li>
+        </ul>
+        <p style="margin-top: var(--space-sm);">
+          This means <strong>exploration and learning are just as rewarding as fighting</strong>.
+          A player who carefully places all concepts earns as many upgrade points as one who battles every enemy.
+          21 total SP are needed to max every skill.
+        </p>
+      </div>
+      <div>
+        <div class="card" style="border-color: var(--green);">
+          <span class="card-icon">🌲</span>
+          <h3>Two Branches</h3>
+          <p><strong>Offence:</strong> Sharp Cutlass → Swift Charge → Thunder Strike, with a Plunder side-branch.</p>
+          <p style="margin-top: var(--space-sm);"><strong>Defence:</strong> Iron Hull → Sea Legs.</p>
+          <p style="margin-top: var(--space-sm); color: var(--cyan);">Prerequisites gate deeper skills. You must invest in basics before unlocking the powerful tier-2 and tier-3 abilities.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Enemy Bestiary ═══ -->
+  <section class="section">
+    <h2 class="section-title">Island Enemies</h2>
+    <p class="section-subtitle">Creatures escalate in complexity as you progress through the archipelago</p>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Enemy</th>
+          <th>First Appears</th>
+          <th>Behaviour</th>
+          <th>Elite Variant</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>🦀 Crab</td>
+          <td>Island 2</td>
+          <td>Patrols between landmarks — the introductory enemy</td>
+          <td>🔥 Fire Crab (faster, tougher)</td>
+        </tr>
+        <tr>
+          <td>🪼 Jellyfish</td>
+          <td>Island 3</td>
+          <td>Drifts vertically — adds a second patrol axis</td>
+          <td>👻 Shadow Jelly (harder to spot)</td>
+        </tr>
+        <tr>
+          <td>🐛 Burrower</td>
+          <td>Island 4</td>
+          <td>Hides underground, emerges near the player — surprise attacks</td>
+          <td>🐍 Sand Wyrm (faster, wider range)</td>
+        </tr>
+        <tr>
+          <td>🦔 Urchin</td>
+          <td>Elite only</td>
+          <td>Stationary area denial near landmarks — blocks access</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>🦈 Phantom Ray</td>
+          <td>Elite only</td>
+          <td>Long diagonal patrol covering large areas — fast and dangerous</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="card-grid" style="margin-top: var(--space-lg);">
+      <div class="card">
+        <span class="card-icon">🛡️</span>
+        <h3>Performance Scaling</h3>
+        <p>Enemy spawns adapt to your skill. D-grade players face fewer enemies (novice assist). S/A-grade players face elite variants plus extra spawns like Urchins and Phantom Rays.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">💨</span>
+        <h3>Shield Powerup</h3>
+        <p>Found scattered across islands, the shield powerup absorbs one enemy hit — letting you pass through without triggering combat. Strategic players use shields to skip tough encounters.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══ Fail / Retry ═══ -->
   <section class="section">
     <h2 class="section-title">Fair Failure</h2>

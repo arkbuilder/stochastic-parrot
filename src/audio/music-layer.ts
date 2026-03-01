@@ -1,3 +1,8 @@
+/**
+ * @deprecated Superseded by SolavineSound engine (`src/audio/solavine/`).
+ * AudioManager now delegates layer management to SolavineEngine.setMusicLayers().
+ * Kept for reference.
+ */
 import type { MusicLayerName } from './types';
 
 /* ── note frequencies (A3=220 base, equal temperament) ── */

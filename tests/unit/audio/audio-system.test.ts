@@ -2,28 +2,27 @@
  * Audio System — Design Compliance Tests
  *
  * Validates requirements A1–A14 from AudioDirection.md:
- *  - 4-channel music layer engine (base, rhythm, tension, resolution)
+ *  - 5-channel music layer engine (base, rhythm, tension, urgency, resolution)
  *  - Independent volume controls (master, music, sfx)
  *  - Mute-all toggle
- *  - SFX event coverage for all game interactions
+ *  - SFX event coverage for all game interactions (40 events)
  *  - AudioEvent enum covers required feedback sounds
+ *  - AudioManager delegates to SolavineEngine
  */
 import { describe, it, expect } from 'vitest';
 import { AudioEvent, type MusicLayerName } from '../../../src/audio/types';
 
-// ── A1: 4-channel structure ──
+// ── A1: 5-channel structure ──
 
 describe('Audio — Music Layer Architecture (A1/A6)', () => {
-  it('A1 — exactly 4 music layers defined', () => {
-    const layers: MusicLayerName[] = ['base', 'rhythm', 'tension', 'resolution'];
-    expect(layers).toHaveLength(4);
+  it('A1 — exactly 5 music layers defined', () => {
+    const layers: MusicLayerName[] = ['base', 'rhythm', 'tension', 'urgency', 'resolution'];
+    expect(layers).toHaveLength(5);
   });
 
-  it('A6 — layer names match adaptive music spec (Base, Rhythm, Tension, Resolution)', () => {
-    // These are the canonical layer names from AudioDirection.md
-    const expectedLayers: MusicLayerName[] = ['base', 'rhythm', 'tension', 'resolution'];
+  it('A6 — layer names match adaptive music spec (Base, Rhythm, Tension, Urgency, Resolution)', () => {
+    const expectedLayers: MusicLayerName[] = ['base', 'rhythm', 'tension', 'urgency', 'resolution'];
     for (const layer of expectedLayers) {
-      // Type system enforces this — if it compiles, it's correct
       const typed: MusicLayerName = layer;
       expect(typed).toBeDefined();
     }
@@ -167,9 +166,9 @@ describe('Audio — Visual Feedback Parity (A10)', () => {
   });
 });
 
-// ── Credits Music ──
+// ── Credits Music (legacy — module is @deprecated, kept for reference tests) ──
 
-describe('Audio — Credits Music', () => {
+describe('Audio — Credits Music (legacy)', () => {
   it('CreditsMusic class exists and exports melody data', async () => {
     const mod = await import('../../../src/audio/credits-music');
     expect(mod.CreditsMusic).toBeDefined();
@@ -185,5 +184,88 @@ describe('Audio — Credits Music', () => {
   it('credits harmony provides bass accompaniment', async () => {
     const { CREDITS_HARMONY } = await import('../../../src/audio/credits-music');
     expect(CREDITS_HARMONY.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ── SolavineSound Integration ──
+
+describe('Audio — SolavineSound Integration', () => {
+  it('AudioManager delegates to SolavineEngine (not old SfxEngine / MusicLayerEngine)', async () => {
+    const { AudioManager } = await import('../../../src/audio/audio-manager');
+    const am = new AudioManager();
+
+    // New API methods that only exist via SolavineEngine
+    expect(typeof am.playSong).toBe('function');
+    expect(typeof am.selectIslandTheme).toBe('function');
+    expect(typeof am.applyEncounterPreset).toBe('function');
+    expect(typeof am.playFanfare).toBe('function');
+    expect(typeof am.stopSong).toBe('function');
+  });
+
+  it('AudioEvent enum has ≥40 events (expanded for SolavineSound)', () => {
+    const allEvents = Object.values(AudioEvent);
+    expect(allEvents.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it('AudioEvent includes new combat SFX events', () => {
+    const allEvents = Object.values(AudioEvent);
+    expect(allEvents).toContain(AudioEvent.CritHit);
+    expect(allEvents).toContain(AudioEvent.ShieldBlock);
+    expect(allEvents).toContain(AudioEvent.ComboHit);
+    expect(allEvents).toContain(AudioEvent.HealChime);
+  });
+
+  it('AudioEvent includes navigation SFX events', () => {
+    const allEvents = Object.values(AudioEvent);
+    expect(allEvents).toContain(AudioEvent.SailUnfurl);
+    expect(allEvents).toContain(AudioEvent.AnchorDrop);
+    expect(allEvents).toContain(AudioEvent.MapRustle);
+    expect(allEvents).toContain(AudioEvent.WavesCrash);
+  });
+
+  it('AudioEvent includes encounter ambience SFX events', () => {
+    const allEvents = Object.values(AudioEvent);
+    expect(allEvents).toContain(AudioEvent.StormThunder);
+    expect(allEvents).toContain(AudioEvent.KrakenRoar);
+    expect(allEvents).toContain(AudioEvent.CannonFire);
+    expect(allEvents).toContain(AudioEvent.SquidHorn);
+  });
+
+  it('AudioEvent includes reward/upgrade SFX events', () => {
+    const allEvents = Object.values(AudioEvent);
+    expect(allEvents).toContain(AudioEvent.AchievementEarned);
+    expect(allEvents).toContain(AudioEvent.UpgradeCommon);
+    expect(allEvents).toContain(AudioEvent.UpgradeRare);
+    expect(allEvents).toContain(AudioEvent.UpgradeLegendary);
+    expect(allEvents).toContain(AudioEvent.CoinCollect);
+  });
+
+  it('AudioEvent includes state transition SFX events', () => {
+    const allEvents = Object.values(AudioEvent);
+    expect(allEvents).toContain(AudioEvent.FailStateRumble);
+    expect(allEvents).toContain(AudioEvent.RetryBootUp);
+  });
+
+  it('AudioEvent values match SolavineEvent values (1:1 mapping)', async () => {
+    const { SolavineEvent } = await import('../../../src/audio/solavine');
+    const audioValues = new Set(Object.values(AudioEvent));
+    const solavineValues = new Set(Object.values(SolavineEvent));
+
+    // Every AudioEvent must exist in SolavineEvent
+    for (const val of audioValues) {
+      expect(solavineValues.has(val as string), `Missing SolavineEvent for AudioEvent '${val}'`).toBe(true);
+    }
+    // Every SolavineEvent must exist in AudioEvent
+    for (const val of solavineValues) {
+      expect(audioValues.has(val as string), `Missing AudioEvent for SolavineEvent '${val}'`).toBe(true);
+    }
+  });
+
+  it('snapshot reports no song initially', async () => {
+    const { AudioManager } = await import('../../../src/audio/audio-manager');
+    const am = new AudioManager();
+    const snap = am.getSnapshot();
+    expect(snap.currentSong).toBeNull();
+    expect(snap.activeLayers).toContain('base');
   });
 });

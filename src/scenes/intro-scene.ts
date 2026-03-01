@@ -43,10 +43,13 @@ export class IntroScene implements Scene {
   private scrollDone = false;
   private lastTickChar = -1;
   private playSound: ((event: AudioEvent) => void) | null = null;
+  private hasNarratedScroll = false;
 
   constructor(
     private readonly onDone: () => void,
     private readonly audioPlay?: (event: AudioEvent) => void,
+    private readonly narrateScroll?: (lines: string[]) => void,
+    private readonly stopNarration?: () => void,
   ) {
     this.playSound = audioPlay ?? null;
   }
@@ -61,9 +64,12 @@ export class IntroScene implements Scene {
     this.fastMode = false;
     this.scrollDone = false;
     this.lastTickChar = -1;
+    this.hasNarratedScroll = false;
   }
 
-  exit(): void {}
+  exit(): void {
+    this.stopNarration?.();
+  }
 
   update(dt: number, actions: InputAction[]): void {
     this.elapsed += dt;
@@ -84,6 +90,10 @@ export class IntroScene implements Scene {
             this.elapsed = 0;
             this.typewriterTimer = 0;
             this.typewriterProgress = 0;
+            if (!this.hasNarratedScroll) {
+              this.narrateScroll?.(SCROLL_TEXT);
+              this.hasNarratedScroll = true;
+            }
           }
         }
         break;
@@ -118,6 +128,7 @@ export class IntroScene implements Scene {
         if (this.scrollDone) {
           if (hasTap || this.elapsed > 2.0) {
             this.phase = 'done';
+            this.stopNarration?.();
             this.onDone();
           }
         }

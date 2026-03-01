@@ -16,6 +16,7 @@ import { OverworldScene } from './scenes/overworld-scene';
 import { LeaderboardScene } from './scenes/leaderboard-scene';
 import { PauseScene, type ConceptJournalEntry } from './scenes/pause-scene';
 import { AudioManager } from './audio/audio-manager';
+import { NarrationEngine } from './audio/narration-engine';
 import { TelemetryClient } from './telemetry/telemetry-client';
 import { ConsoleSink } from './telemetry/console-sink';
 import { ApiClient, getDeviceId } from './persistence/api-client';
@@ -90,6 +91,9 @@ const renderer = new Renderer(canvas);
 const inputManager = new InputManager(canvas);
 const stateMachine = new StateMachine();
 const audioManager = new AudioManager();
+const narration = new NarrationEngine((text) => {
+  audioManager.playVoice(text, { pitchHz: 104, speed: 1.08 });
+});
 const telemetry = new TelemetryClient(new ConsoleSink());
 const apiClient = new ApiClient();
 const localStore = new LocalStore();
@@ -919,7 +923,7 @@ const menuScene = new MenuScene({
   },
   onSpeakMenuItem: (label: string) => {
     audioManager.resume().catch(() => {});
-    audioManager.playVoice(label, { pitchHz: 108, speed: 1.2 });
+    narration.speak(label, { interrupt: true, rate: 1.0, pitch: 0.95, volume: 0.95 });
   },
   getMenuState: () => ({
     hasResumableSession: resumableSession !== null,
@@ -979,6 +983,13 @@ const introScene = new IntroScene(
   (event: AudioEvent) => {
     audioManager.resume().catch(() => {});
     audioManager.play(event);
+  },
+  (lines: string[]) => {
+    audioManager.resume().catch(() => {});
+    narration.speakLines(lines, { interrupt: true, rate: 0.96, pitch: 0.92, volume: 0.95, gapMs: 120 });
+  },
+  () => {
+    narration.cancel();
   },
 );
 

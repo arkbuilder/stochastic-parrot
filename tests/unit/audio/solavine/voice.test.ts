@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildVoiceFrames, estimateVoiceDuration, textToPhonemeIds } from '../../../../src/audio/solavine/voice';
+import {
+  buildVoiceFrames,
+  estimateVoiceDuration,
+  estimateVoicedRatio,
+  textToPhonemeIds,
+} from '../../../../src/audio/solavine/voice';
 
 describe('voice planning', () => {
   it('maps digraphs first', () => {
@@ -9,6 +14,11 @@ describe('voice planning', () => {
   it('returns silence frame for empty text', () => {
     const ids = textToPhonemeIds('   ');
     expect(ids).toEqual(['SIL']);
+  });
+
+  it('uses word override for critical menu labels', () => {
+    expect(textToPhonemeIds('PLAY')).toEqual(['P', 'L', 'A']);
+    expect(textToPhonemeIds('BESTIARY')).toEqual(['B', 'E', 'S', 'T', 'I', 'R', 'E']);
   });
 
   it('builds monotonically increasing frame start times', () => {
@@ -22,5 +32,11 @@ describe('voice planning', () => {
     const normal = estimateVoiceDuration('READY PLAYER ONE', { speed: 1 });
     const faster = estimateVoiceDuration('READY PLAYER ONE', { speed: 2 });
     expect(faster).toBeLessThan(normal);
+  });
+
+  it('keeps voiced ratio above noise-heavy threshold for menu words', () => {
+    expect(estimateVoicedRatio('PLAY')).toBeGreaterThan(0.45);
+    expect(estimateVoicedRatio('LEADERBOARD')).toBeGreaterThan(0.45);
+    expect(estimateVoicedRatio('BESTIARY')).toBeGreaterThan(0.45);
   });
 });

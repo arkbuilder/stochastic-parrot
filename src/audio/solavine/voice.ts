@@ -63,6 +63,26 @@ const PHONEMES: Record<string, VoicePhoneme> = {
 const DIGRAPHS = ['CH', 'SH', 'TH'] as const;
 const SILENCE_PHONEME: VoicePhoneme = PHONEMES.SIL!;
 
+/**
+ * Targeted word-level pronunciation hints for critical UI words.
+ * This dramatically improves intelligibility versus letter-by-letter mapping.
+ */
+const WORD_OVERRIDES: Record<string, string[]> = {
+  PLAY: ['P', 'L', 'A'],
+  RESUME: ['R', 'I', 'S', 'U', 'M'],
+  LEADERBOARD: ['L', 'E', 'D', 'R', 'B', 'O', 'R', 'D'],
+  BESTIARY: ['B', 'E', 'S', 'T', 'I', 'R', 'E'],
+};
+
+const LETTER_FALLBACK: Record<string, string[]> = {
+  C: ['K'],
+  J: ['CH'],
+  Q: ['K'],
+  V: ['F'],
+  X: ['K', 'S'],
+  Z: ['S'],
+};
+
 function sanitize(text: string): string {
   return text.toUpperCase().replace(/[^A-Z\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -71,27 +91,49 @@ export function textToPhonemeIds(text: string): string[] {
   const cleaned = sanitize(text);
   if (!cleaned) return ['SIL'];
 
+  const words = cleaned.split(' ');
+  const out: string[] = [];
+
+  for (let wi = 0; wi < words.length; wi++) {
+    const word = words[wi]!;
+
+    const override = WORD_OVERRIDES[word];
+    if (override) {
+      out.push(...override);
+    } else {
+      out.push(...spellWord(word));
+    }
+
+    if (wi < words.length - 1) out.push('SIL');
+  }
+
+  return out.length > 0 ? out : ['SIL'];
+}
+
+function spellWord(word: string): string[] {
   const ids: string[] = [];
   let i = 0;
 
-  while (i < cleaned.length) {
-    const c = cleaned[i];
+  while (i < word.length) {
+    const c = word[i];
     if (!c) break;
 
-    if (c === ' ') {
-      ids.push('SIL');
-      i += 1;
-      continue;
-    }
-
-    const pair = cleaned.slice(i, i + 2);
+    const pair = word.slice(i, i + 2);
     if ((DIGRAPHS as readonly string[]).includes(pair) && PHONEMES[pair]) {
       ids.push(pair);
       i += 2;
       continue;
     }
 
-    ids.push(PHONEMES[c] ? c : 'SIL');
+    if (PHONEMES[c]) {
+      ids.push(c);
+      i += 1;
+      continue;
+    }
+
+    const fallback = LETTER_FALLBACK[c];
+    if (fallback) ids.push(...fallback);
+    else ids.push('SIL');
     i += 1;
   }
 
@@ -118,6 +160,18 @@ export function buildVoiceFrames(text: string, opts: VoiceOptions = {}): VoiceFr
 export function estimateVoiceDuration(text: string, opts: VoiceOptions = {}): number {
   const frames = buildVoiceFrames(text, opts);
   return frames.reduce((sum, f) => sum + f.durationS, 0);
+}
+
+/**
+ * Proxy intelligibility metric for unit tests:
+ * ratio of voiced time to total phrase duration.
+ */
+export function estimateVoicedRatio(text: string, opts: VoiceOptions = {}): number {
+  const frames = buildVoiceFrames(text, opts);
+  const total = frames.reduce((sum, f) => sum + f.durationS, 0);
+  if (total <= 0) return 0;
+  const voiced = frames.reduce((sum, f) => sum + (f.phoneme.voiced ? f.durationS : 0), 0);
+  return voiced / total;
 }
 
 function clamp(v: number, min: number, max: number): number {

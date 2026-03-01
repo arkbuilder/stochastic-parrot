@@ -190,17 +190,29 @@ export class SolavineEngine {
       const formants = frame.phoneme.formants;
       const master = this.context.createGain();
       master.gain.setValueAtTime(0.0001, when);
-      master.gain.exponentialRampToValueAtTime(0.22, when + Math.min(0.01, dur * 0.25));
+      master.gain.exponentialRampToValueAtTime(0.3, when + Math.min(0.012, dur * 0.3));
       master.gain.exponentialRampToValueAtTime(0.0001, when + dur + 0.02);
       master.connect(this.sfxGain);
 
       if (frame.phoneme.voiced) {
-        const osc = this.context.createOscillator();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(basePitch * frame.phoneme.pitchMul, when);
-        this.routeThroughFormants(osc, formants, master, 0.22);
-        osc.start(when);
-        osc.stop(when + dur + 0.03);
+        const carrier = this.context.createOscillator();
+        carrier.type = 'sawtooth';
+        carrier.frequency.setValueAtTime(basePitch * frame.phoneme.pitchMul, when);
+
+        const sub = this.context.createOscillator();
+        sub.type = 'square';
+        sub.frequency.setValueAtTime(basePitch * frame.phoneme.pitchMul * 0.5, when);
+        const subGain = this.context.createGain();
+        subGain.gain.value = 0.2;
+        sub.connect(subGain);
+
+        this.routeThroughFormants(carrier, formants, master, 10);
+        this.routeThroughFormants(subGain, formants, master, 8);
+
+        carrier.start(when);
+        sub.start(when);
+        carrier.stop(when + dur + 0.03);
+        sub.stop(when + dur + 0.03);
       }
 
       if (frame.phoneme.noise > 0.001) {
@@ -211,9 +223,21 @@ export class SolavineEngine {
         const noise = this.context.createBufferSource();
         noise.buffer = buffer;
         const noiseGain = this.context.createGain();
-        noiseGain.gain.value = frame.phoneme.noise * 0.12;
+        const noiseScale = frame.phoneme.voiced ? 0.025 : 0.065;
+        noiseGain.gain.value = frame.phoneme.noise * noiseScale;
         noise.connect(noiseGain);
-        this.routeThroughFormants(noiseGain, formants, master, 0.25);
+
+        if (frame.phoneme.voiced && formants.length > 0) {
+          this.routeThroughFormants(noiseGain, formants, master, 6);
+        } else {
+          const hp = this.context.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.value = 1800;
+          hp.Q.value = 0.9;
+          noiseGain.connect(hp);
+          hp.connect(master);
+        }
+
         noise.start(when);
         noise.stop(when + dur + 0.03);
       }

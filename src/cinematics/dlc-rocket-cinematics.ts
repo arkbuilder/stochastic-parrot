@@ -43,6 +43,7 @@ const dlcLaunchpadLagoon: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.8, anim: 'wave' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
           { kind: 'rocket', x: 190, y: 200, scale: 0.7 },
         ],
         caption: 'Captain Nemo spots a rusted rocket. A new journey begins!',
@@ -57,6 +58,7 @@ const dlcLaunchpadLagoon: IslandCinematics = {
           { id: 'bit', x: 120, y: 260, scale: 0.7, anim: 'idle' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
           { kind: 'fog_wall', x: 120, y: 80, scale: 0.8 },
         ],
         caption: 'Learn the basics of thrust, fuel, and payload to rebuild the ship.',
@@ -76,6 +78,7 @@ const dlcLaunchpadLagoon: IslandCinematics = {
           { id: 'bit', x: 150, y: 250, scale: 0.8, anim: 'celebrate' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
           { kind: 'star_chart', x: 120, y: 170, scale: 1.3 },
         ],
         caption: 'Engines tested! A star chart fragment found in the launchpad wreckage.',
@@ -127,6 +130,7 @@ const dlcBoosterReef: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 160, y: 130, scale: 1.2 },
           { kind: 'rocket', x: 50, y: 170, scale: 0.6 },
         ],
         caption: 'Staging, drag, escape velocity — master these to break free!',
@@ -140,6 +144,7 @@ const dlcBoosterReef: IslandCinematics = {
           { id: 'nemo', x: 120, y: 290, scale: 1.2, anim: 'walk' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 130, scale: 1.2 },
           { kind: 'lightning', x: 80, y: 30, scale: 1.2 },
         ],
         caption: 'The reef shakes with each lightning strike. Stay focused, captain!',
@@ -160,6 +165,7 @@ const dlcBoosterReef: IslandCinematics = {
           { id: 'bit', x: 145, y: 250, scale: 0.8, anim: 'wave' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 130, scale: 1 },
           { kind: 'star_chart', x: 120, y: 170, scale: 1.2 },
         ],
         caption: 'Boosters attached! Another star chart fragment recovered.',
@@ -207,6 +213,7 @@ const dlcOrbitAtoll: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 250, scale: 0.6 },
           { kind: 'asteroid', x: 40, y: 100, scale: 1.2 },
           { kind: 'asteroid', x: 200, y: 80, scale: 0.8 },
         ],
@@ -221,6 +228,7 @@ const dlcOrbitAtoll: IslandCinematics = {
           { id: 'nemo', x: 90, y: 290, scale: 1, anim: 'walk' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 250, scale: 0.6 },
           { kind: 'orbit_ring', x: 160, y: 100, scale: 1 },
         ],
         tint: 'rgba(30,20,80,0.1)',
@@ -240,6 +248,7 @@ const dlcOrbitAtoll: IslandCinematics = {
           { id: 'nemo', x: 110, y: 280, scale: 1.2, anim: 'celebrate' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 250, scale: 0.6 },
           { kind: 'star_chart', x: 120, y: 170, scale: 1.3 },
         ],
         caption: 'Stable orbit achieved! The star chart grows clearer.',
@@ -298,6 +307,7 @@ const dlcNebulaShallows: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 250, scale: 0.6 },
           { kind: 'asteroid', x: 30, y: 150, scale: 1 },
           { kind: 'asteroid', x: 210, y: 110, scale: 0.6 },
         ],
@@ -312,6 +322,7 @@ const dlcNebulaShallows: IslandCinematics = {
           { id: 'nemo', x: 80, y: 290, scale: 1, anim: 'walk' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 80, y: 250, scale: 0.6 },
           { kind: 'tentacle', x: 200, y: 280, scale: 1.2 },
         ],
         tint: 'rgba(10,5,30,0.2)',
@@ -333,6 +344,7 @@ const dlcNebulaShallows: IslandCinematics = {
           { id: 'bit', x: 145, y: 250, scale: 0.8, anim: 'celebrate' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 250, scale: 0.6 },
           { kind: 'star_chart', x: 120, y: 170, scale: 1.3 },
         ],
         caption: 'Navigation mastered! The star chart is nearly complete.',
@@ -383,6 +395,7 @@ const dlcKrakensVoid: IslandCinematics = {
           { id: 'bit', x: 140, y: 255, scale: 0.7, anim: 'idle' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 250, scale: 0.6 },
           { kind: 'tentacle', x: 30, y: 200, scale: 1 },
           { kind: 'tentacle', x: 210, y: 180, scale: 1.3 },
         ],
@@ -411,6 +424,7 @@ const dlcKrakensVoid: IslandCinematics = {
           { id: 'space_kraken', x: 150, y: 120, scale: 1, anim: 'idle' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 250, scale: 0.6 },
           { kind: 'asteroid', x: 40, y: 160, scale: 0.8 },
           { kind: 'asteroid', x: 210, y: 100, scale: 1 },
         ],
@@ -446,6 +460,7 @@ const dlcKrakensVoid: IslandCinematics = {
           { id: 'nemo', x: 100, y: 280, scale: 1, anim: 'idle' },
         ],
         props: [
+          { kind: 'island_silhouette', x: 120, y: 250, scale: 0.6 },
           { kind: 'rocket', x: 130, y: 160, scale: 1 },
           { kind: 'reentry_flame', x: 130, y: 200, scale: 1.2 },
         ],

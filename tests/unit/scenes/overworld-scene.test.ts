@@ -90,8 +90,8 @@ describe('OverworldScene', () => {
     const scene = new OverworldScene(deps);
     scene.enter({} as any);
 
-    // island_02 is at { x: 108, y: 194 }
-    scene.update(0.016, [tapAction(108, 194)]);
+    // island_02 is at { x: 110, y: 192 }
+    scene.update(0.016, [tapAction(110, 192)]);
 
     const calls = deps.telemetry.emit.mock.calls;
     expect(calls.some((c: any) => c[0] === 'node_selected' && c[1].destination_island_id === 'island_02')).toBe(true);
@@ -101,9 +101,9 @@ describe('OverworldScene', () => {
     const scene = new OverworldScene(deps);
     scene.enter({} as any);
 
-    // island_03 at {152,232} is NOT in unlockedIslands
+    // island_03 at {154,236} is NOT in unlockedIslands
     const before = deps.telemetry.emit.mock.calls.length;
-    scene.update(0.016, [tapAction(152, 232)]);
+    scene.update(0.016, [tapAction(154, 236)]);
     // Only the enter telemetry call should exist
     const nodeSelected = deps.telemetry.emit.mock.calls.find(
       (c: any) => c[0] === 'node_selected' && c[1].destination_island_id === 'island_03',
@@ -120,7 +120,7 @@ describe('OverworldScene', () => {
     scene.enter({} as any);
 
     // Select island_02
-    scene.update(0.016, [tapAction(108, 194)]);
+    scene.update(0.016, [tapAction(110, 192)]);
     // Tap sail button at {48,352,144,34}
     scene.update(0.016, [tapAction(120, 370)]);
 
@@ -137,7 +137,7 @@ describe('OverworldScene', () => {
     scene.enter({} as any);
 
     // Select island_02
-    scene.update(0.016, [tapAction(108, 194)]);
+    scene.update(0.016, [tapAction(110, 192)]);
     // Keyboard confirm
     scene.update(0.016, [keyConfirmAction()]);
 
@@ -154,7 +154,7 @@ describe('OverworldScene', () => {
     scene.enter({} as any);
 
     // Select + sail
-    scene.update(0.016, [tapAction(108, 194)]);
+    scene.update(0.016, [tapAction(110, 192)]);
     scene.update(0.016, [tapAction(120, 370)]);
 
     // Advance 12s+ to complete sailing (sailDurationMs starts at 12000)
@@ -174,7 +174,7 @@ describe('OverworldScene', () => {
     const scene = new OverworldScene(d);
     scene.enter({} as any);
 
-    scene.update(0.016, [tapAction(108, 194)]);
+    scene.update(0.016, [tapAction(110, 192)]);
     scene.update(0.016, [tapAction(120, 370)]);
 
     // With reinforced_mast, sailDuration = floor(12000/1.2) = 10000ms = 10s
@@ -191,7 +191,7 @@ describe('OverworldScene', () => {
     scene.enter({} as any);
 
     // Select the same island we're at
-    scene.update(0.016, [tapAction(56, 246)]); // island_01 coords
+    scene.update(0.016, [tapAction(66, 236)]); // island_01 coords
     scene.update(0.016, [tapAction(120, 370)]); // sail button
 
     const sailStart = d.telemetry.emit.mock.calls.find((c: any) => c[0] === 'sailing_started');
@@ -205,8 +205,8 @@ describe('OverworldScene', () => {
     const scene = new OverworldScene(d);
     scene.enter({} as any);
 
-    // hidden_reef at {34, 122}
-    scene.update(0.016, [tapAction(34, 122)]);
+    // hidden_reef at {22, 104}
+    scene.update(0.016, [tapAction(22, 104)]);
     const nodeSelected = d.telemetry.emit.mock.calls.find(
       (c: any) => c[0] === 'node_selected' && c[1].destination_island_id === 'hidden_reef',
     );
@@ -223,7 +223,7 @@ describe('OverworldScene', () => {
     const scene = new OverworldScene(d);
     scene.enter({} as any);
 
-    scene.update(0.016, [tapAction(34, 122)]);
+    scene.update(0.016, [tapAction(22, 104)]);
     const nodeSelected = d.telemetry.emit.mock.calls.find(
       (c: any) => c[0] === 'node_selected' && c[1].destination_island_id === 'hidden_reef',
     );
@@ -238,7 +238,7 @@ describe('OverworldScene', () => {
     const scene = new OverworldScene(d);
     scene.enter({} as any);
 
-    scene.update(0.016, [tapAction(108, 194)]);
+    scene.update(0.016, [tapAction(110, 192)]);
     scene.update(0.016, [tapAction(120, 370)]);
     // Advance to about 50% (6s of 12s)
     scene.update(6, []);
@@ -260,7 +260,7 @@ describe('OverworldScene', () => {
     });
     const scene = new OverworldScene(d);
     scene.enter({} as any);
-    scene.update(0.016, [tapAction(108, 194)]);
+    scene.update(0.016, [tapAction(110, 192)]);
     scene.update(0.016, [tapAction(120, 370)]);
     scene.update(1, []); // in sailing
     expect(() => scene.render(makeCtxStub())).not.toThrow();

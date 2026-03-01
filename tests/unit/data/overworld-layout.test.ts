@@ -16,6 +16,10 @@ import {
   nodesOverlap,
   nodeCenterDistance,
   nodeExtent,
+  isOnGrid,
+  snapToGrid,
+  gridXPositions,
+  gridYPositions,
   CHART_TOP,
   CHART_BOTTOM,
   CHART_LEFT,
@@ -25,6 +29,11 @@ import {
   GRADE_OFFSET_Y,
   GRADE_TEXT_H,
   MIN_NODE_SEPARATION,
+  GRID_CELL,
+  GRID_ORIGIN_X,
+  GRID_ORIGIN_Y,
+  GRID_COLS,
+  GRID_ROWS,
 } from '../../../src/data/overworld-layout-validator';
 import { OVERWORLD_NODES } from '../../../src/data/progression';
 import { ROCKET_SCIENCE_PACK } from '../../../src/dlc/packs/rocket-science-pack';
@@ -52,6 +61,93 @@ describe('layout constants', () => {
     expect(CHART_RIGHT).toBe(240);
     expect(CHART_TOP).toBe(84);
     expect(CHART_BOTTOM).toBe(320);
+  });
+
+  it('grid cell size exceeds minimum node separation', () => {
+    expect(GRID_CELL).toBeGreaterThanOrEqual(MIN_NODE_SEPARATION);
+  });
+
+  it('grid has 5 columns and 5 rows', () => {
+    expect(GRID_COLS).toBe(5);
+    expect(GRID_ROWS).toBe(5);
+  });
+
+  it('all grid intersections are within chart bounds', () => {
+    for (const gx of gridXPositions()) {
+      for (const gy of gridYPositions()) {
+        const node = makeNode({ islandId: 'grid_check', x: gx, y: gy });
+        expect(isNodeInBounds(node), `(${gx}, ${gy}) should be in bounds`).toBe(true);
+      }
+    }
+  });
+
+  it('diagonal grid neighbours are farther apart than MIN_NODE_SEPARATION', () => {
+    const diag = Math.sqrt(GRID_CELL * GRID_CELL + GRID_CELL * GRID_CELL);
+    expect(diag).toBeGreaterThan(MIN_NODE_SEPARATION);
+  });
+});
+
+// ── Grid helpers ────────────────────────────────────────────
+
+describe('isOnGrid', () => {
+  it('accepts a node at the grid origin', () => {
+    expect(isOnGrid(makeNode({ islandId: 'g', x: GRID_ORIGIN_X, y: GRID_ORIGIN_Y }))).toBe(true);
+  });
+
+  it('accepts a node at the last grid cell', () => {
+    const lastX = GRID_ORIGIN_X + (GRID_COLS - 1) * GRID_CELL;
+    const lastY = GRID_ORIGIN_Y + (GRID_ROWS - 1) * GRID_CELL;
+    expect(isOnGrid(makeNode({ islandId: 'g', x: lastX, y: lastY }))).toBe(true);
+  });
+
+  it('rejects a node 1px off the grid', () => {
+    expect(isOnGrid(makeNode({ islandId: 'g', x: GRID_ORIGIN_X + 1, y: GRID_ORIGIN_Y }))).toBe(false);
+  });
+
+  it('rejects a node between grid rows', () => {
+    expect(isOnGrid(makeNode({ islandId: 'g', x: GRID_ORIGIN_X, y: GRID_ORIGIN_Y + 22 }))).toBe(false);
+  });
+});
+
+describe('snapToGrid', () => {
+  it('snaps to the nearest grid point', () => {
+    const result = snapToGrid(70, 200);
+    expect(result).toEqual({ x: 66, y: 192 });
+  });
+
+  it('clamps to first column/row if too far left/up', () => {
+    const result = snapToGrid(-100, -100);
+    expect(result).toEqual({ x: GRID_ORIGIN_X, y: GRID_ORIGIN_Y });
+  });
+
+  it('clamps to last column/row if too far right/down', () => {
+    const lastX = GRID_ORIGIN_X + (GRID_COLS - 1) * GRID_CELL;
+    const lastY = GRID_ORIGIN_Y + (GRID_ROWS - 1) * GRID_CELL;
+    const result = snapToGrid(999, 999);
+    expect(result).toEqual({ x: lastX, y: lastY });
+  });
+
+  it('returns exact point if already on grid', () => {
+    const gx = GRID_ORIGIN_X + 2 * GRID_CELL;
+    const gy = GRID_ORIGIN_Y + 3 * GRID_CELL;
+    expect(snapToGrid(gx, gy)).toEqual({ x: gx, y: gy });
+  });
+});
+
+describe('gridXPositions / gridYPositions', () => {
+  it('returns correct column count', () => {
+    expect(gridXPositions()).toHaveLength(GRID_COLS);
+  });
+
+  it('returns correct row count', () => {
+    expect(gridYPositions()).toHaveLength(GRID_ROWS);
+  });
+
+  it('positions are evenly spaced by GRID_CELL', () => {
+    const xs = gridXPositions();
+    for (let i = 1; i < xs.length; i++) {
+      expect(xs[i]! - xs[i - 1]!).toBe(GRID_CELL);
+    }
   });
 });
 
@@ -150,10 +246,10 @@ describe('nodesOverlap', () => {
 // ── validateOverworldLayout (synthetic) ─────────────────────
 
 describe('validateOverworldLayout', () => {
-  it('returns empty array for valid layout', () => {
+  it('returns empty array for valid grid-snapped layout', () => {
     const nodes = [
-      makeNode({ islandId: 'n1', x: 60, y: 150 }),
-      makeNode({ islandId: 'n2', x: 180, y: 250 }),
+      makeNode({ islandId: 'n1', x: 66, y: 148 }),
+      makeNode({ islandId: 'n2', x: 154, y: 236 }),
     ];
     expect(validateOverworldLayout(nodes)).toEqual([]);
   });
@@ -163,9 +259,18 @@ describe('validateOverworldLayout', () => {
       makeNode({ islandId: 'bad', x: 5, y: 90 }), // left edge violation
     ];
     const errors = validateOverworldLayout(nodes);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]!.type).toBe('out_of_bounds');
-    expect(errors[0]!.nodeIds).toContain('bad');
+    expect(errors.some((e) => e.type === 'out_of_bounds')).toBe(true);
+    expect(errors.find((e) => e.type === 'out_of_bounds')!.nodeIds).toContain('bad');
+  });
+
+  it('reports off-grid nodes', () => {
+    const nodes = [
+      makeNode({ islandId: 'drifter', x: 100, y: 200 }), // valid bounds, not on grid
+    ];
+    const errors = validateOverworldLayout(nodes);
+    const offGrid = errors.filter((e) => e.type === 'off_grid');
+    expect(offGrid).toHaveLength(1);
+    expect(offGrid[0]!.nodeIds).toContain('drifter');
   });
 
   it('reports overlapping pair', () => {
@@ -195,8 +300,8 @@ describe('validateOverworldLayout', () => {
     expect(validateOverworldLayout([])).toEqual([]);
   });
 
-  it('handles single node in bounds', () => {
-    expect(validateOverworldLayout([makeNode({ islandId: 'solo', x: 120, y: 200 })])).toEqual([]);
+  it('handles single node on grid', () => {
+    expect(validateOverworldLayout([makeNode({ islandId: 'solo', x: 110, y: 192 })])).toEqual([]);
   });
 });
 
@@ -211,6 +316,11 @@ describe('base game overworld layout', () => {
 
   it('all base nodes are within chart bounds', () => {
     const errors = validateOverworldLayout(baseNodes).filter((e) => e.type === 'out_of_bounds');
+    expect(errors).toEqual([]);
+  });
+
+  it('all base nodes snap to grid', () => {
+    const errors = validateOverworldLayout(baseNodes).filter((e) => e.type === 'off_grid');
     expect(errors).toEqual([]);
   });
 
@@ -238,6 +348,11 @@ describe('Rocket Science DLC overworld layout', () => {
     expect(errors).toEqual([]);
   });
 
+  it('all rocket nodes snap to grid', () => {
+    const errors = validateOverworldLayout(rocketNodes).filter((e) => e.type === 'off_grid');
+    expect(errors).toEqual([]);
+  });
+
   it('no rocket node pairs overlap', () => {
     const errors = validateOverworldLayout(rocketNodes).filter((e) => e.type === 'overlap');
     expect(errors).toEqual([]);
@@ -259,6 +374,11 @@ describe('Cybersecurity DLC overworld layout', () => {
 
   it('all cipher nodes are within chart bounds', () => {
     const errors = validateOverworldLayout(cipherNodes).filter((e) => e.type === 'out_of_bounds');
+    expect(errors).toEqual([]);
+  });
+
+  it('all cipher nodes snap to grid', () => {
+    const errors = validateOverworldLayout(cipherNodes).filter((e) => e.type === 'off_grid');
     expect(errors).toEqual([]);
   });
 

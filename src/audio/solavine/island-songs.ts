@@ -48,14 +48,14 @@ export const ISLAND_01_BAY_OF_LEARNING: SongDefinition = {
     instrument: 'triangle_smooth',
     lengthBeats: 16,
     notes: [
-      // Measure 1: gentle ascending C major
-      n(60, 1), n(64, 1), n(67, 1), n(69, 1),
-      // Measure 2: peak and gentle descent
-      n(67, 1), n(64, 1), n(62, 1), n(60, 1),
-      // Measure 3: variation — push to high C
-      n(64, 1), n(67, 1), n(69, 1), n(72, 1),
-      // Measure 4: resolve back down
-      n(69, 1), n(67, 1), n(64, 0.5), n(62, 0.5), n(60, 1),
+      // A (1-4): hook — lilting stepwise rise and answer
+      n(64, 0.5), n(67, 0.5), n(69, 1), n(67, 1), n(64, 1),
+      // A' (5-8): same cell with a brighter lift to B
+      n(64, 0.5), n(67, 0.5), n(71, 1), n(69, 1), n(67, 1),
+      // B (9-12): gentle tension toward the upper color tones
+      n(65, 1), n(67, 0.5), n(69, 0.5), n(71, 1), n(69, 1),
+      // A" (13-16): hook returns and settles
+      n(64, 0.5), n(67, 0.5), n(69, 1), n(67, 1), n(64, 1),
     ],
   },
 
@@ -64,11 +64,11 @@ export const ISLAND_01_BAY_OF_LEARNING: SongDefinition = {
     instrument: 'sine_pure',
     lengthBeats: 16,
     notes: [
-      // Sustained chord arpeggios (C major → F major → G major → C major)
-      n(48, 2), n(52, 2),   // C3, E3
-      n(53, 2), n(57, 2),   // F3, A3
-      n(55, 2), n(59, 2),   // G3, B3
-      n(48, 2), n(52, 2),   // C3, E3
+      // C → Am → F/G tension → C
+      n(48, 1), n(52, 1), n(55, 1), n(52, 1),
+      n(45, 1), n(48, 1), n(52, 1), n(48, 1),
+      n(53, 1), n(57, 1), n(55, 1), n(59, 1),
+      n(48, 1), n(52, 1), n(55, 1), n(52, 1),
     ],
   },
 
@@ -77,11 +77,10 @@ export const ISLAND_01_BAY_OF_LEARNING: SongDefinition = {
     instrument: 'sine_pure',
     lengthBeats: 16,
     notes: [
-      // Root notes — C, F, G, C
-      n(36, 4),  // C2
-      n(41, 4),  // F2
-      n(43, 4),  // G2
-      n(36, 4),  // C2
+      n(36, 2), n(40, 1), n(43, 1),
+      n(45, 2), n(40, 1), n(45, 1),
+      n(41, 2), n(43, 2),
+      n(36, 2), n(38, 1), n(36, 1),
     ],
   },
 
@@ -89,16 +88,29 @@ export const ISLAND_01_BAY_OF_LEARNING: SongDefinition = {
     name: 'bay_drums',
     lengthBeats: 16,
     hits: [
-      // Gentle: kick on 1, hihat on every beat
-      ...Array.from({ length: 4 }, (_, m) => [
-        { drum: 'kick', beat: m * 4, velocity: 0.5 },
-        { drum: 'hihat_closed', beat: m * 4 + 1, velocity: 0.3 },
-        { drum: 'hihat_closed', beat: m * 4 + 2, velocity: 0.3 },
-        { drum: 'hihat_closed', beat: m * 4 + 3, velocity: 0.3 },
-      ]).flat(),
+      // Gentle shuffle feel: sparse kick, soft off-beat hats, light rim punctuation
+      { drum: 'kick', beat: 0, velocity: 0.5 },
+      { drum: 'hihat_closed', beat: 1.5, velocity: 0.25 },
+      { drum: 'rim', beat: 2.5, velocity: 0.3 },
+      { drum: 'hihat_closed', beat: 3.5, velocity: 0.25 },
+
+      { drum: 'kick', beat: 4, velocity: 0.5 },
+      { drum: 'hihat_closed', beat: 5.5, velocity: 0.25 },
+      { drum: 'kick', beat: 7, velocity: 0.4 },
+      { drum: 'hihat_closed', beat: 7.5, velocity: 0.25 },
+
+      { drum: 'kick', beat: 8, velocity: 0.55 },
+      { drum: 'hihat_closed', beat: 9.5, velocity: 0.25 },
+      { drum: 'rim', beat: 10.5, velocity: 0.32 },
+      { drum: 'hihat_closed', beat: 11.5, velocity: 0.25 },
+
+      { drum: 'kick', beat: 12, velocity: 0.5 },
+      { drum: 'hihat_closed', beat: 13.5, velocity: 0.25 },
+      { drum: 'rim', beat: 14.5, velocity: 0.3 },
+      { drum: 'hihat_closed', beat: 15.5, velocity: 0.25 },
     ],
   },
-};
+}
 
 /* ═══════════════════════════════════════════
  * ISLAND 2 — Driftwood Shallows
@@ -408,14 +420,14 @@ export const OVERWORLD_SEA_SHANTY: SongDefinition = {
     instrument: 'triangle_smooth',
     lengthBeats: 16,
     notes: [
-      // Measure 1: broad, hopeful F major
-      n(65, 1), n(69, 1), n(72, 1.5), r(0.5),
-      // Measure 2: gentle fall
-      n(70, 1), n(69, 1), n(67, 1), n(65, 1),
-      // Measure 3: sea shanty call
-      n(67, 0.5), n(69, 0.5), n(72, 1), n(70, 1), n(69, 1),
-      // Measure 4: resolve to F
-      n(67, 1), n(65, 1), r(1), n(65, 1),
+      // A (1-4): singable shanty hook
+      n(65, 1), n(69, 0.5), n(70, 0.5), n(69, 1), n(67, 1),
+      // A' (5-8): same contour with a purposeful leap to C5
+      n(65, 1), n(69, 0.5), n(72, 0.5), n(69, 1), n(67, 0.5), n(65, 0.5),
+      // B (9-12): tension around dominant color before release
+      n(64, 0.5), n(67, 0.5), n(69, 1), n(67, 1), n(65, 1),
+      // A" (13-16): return of hook with firm home cadence
+      n(65, 1), n(69, 0.5), n(70, 0.5), n(69, 0.5), n(67, 0.5), n(65, 1),
     ],
   },
 
@@ -424,11 +436,11 @@ export const OVERWORLD_SEA_SHANTY: SongDefinition = {
     instrument: 'pulse_hollow',
     lengthBeats: 16,
     notes: [
-      // F → Bb → C → F
-      n(53, 2), n(57, 2),   // F3, A3
-      n(58, 2), n(53, 2),   // Bb3, F3
-      n(48, 2), n(52, 2),   // C3, E3
-      n(53, 2), n(57, 2),   // F3, A3
+      // F → Bb → C → F as buoyant broken-chord pulses
+      n(53, 1), n(57, 1), n(60, 1), n(57, 1),
+      n(58, 1), n(62, 1), n(65, 1), n(62, 1),
+      n(48, 1), n(52, 1), n(55, 1), n(52, 1),
+      n(53, 1), n(57, 1), n(60, 1), n(57, 1),
     ],
   },
 
@@ -437,10 +449,10 @@ export const OVERWORLD_SEA_SHANTY: SongDefinition = {
     instrument: 'sine_pure',
     lengthBeats: 16,
     notes: [
-      n(41, 4),  // F2
-      n(34, 4),  // Bb1
-      n(36, 4),  // C2
-      n(41, 4),  // F2
+      n(41, 2), n(36, 1), n(41, 1),
+      n(34, 2), n(41, 1), n(34, 1),
+      n(36, 2), n(43, 1), n(36, 1),
+      n(41, 2), n(36, 1), n(41, 1),
     ],
   },
 
@@ -448,16 +460,29 @@ export const OVERWORLD_SEA_SHANTY: SongDefinition = {
     name: 'shanty_drums',
     lengthBeats: 16,
     hits: [
-      // Swaying: kick on 1, rim on 3 (sea shanty groove)
-      ...Array.from({ length: 4 }, (_, m) => [
-        { drum: 'kick', beat: m * 4, velocity: 0.5 },
-        { drum: 'hihat_closed', beat: m * 4 + 1, velocity: 0.25 },
-        { drum: 'rim', beat: m * 4 + 2, velocity: 0.4 },
-        { drum: 'hihat_closed', beat: m * 4 + 3, velocity: 0.25 },
-      ]).flat(),
+      // Swaying 6/8-like accenting inside 4/4: stomp + offbeat taps
+      { drum: 'kick', beat: 0, velocity: 0.55 },
+      { drum: 'hihat_closed', beat: 1.5, velocity: 0.22 },
+      { drum: 'rim', beat: 2.5, velocity: 0.4 },
+      { drum: 'hihat_closed', beat: 3.5, velocity: 0.22 },
+
+      { drum: 'kick', beat: 4, velocity: 0.55 },
+      { drum: 'hihat_closed', beat: 5.5, velocity: 0.22 },
+      { drum: 'rim', beat: 6.5, velocity: 0.38 },
+      { drum: 'hihat_closed', beat: 7.5, velocity: 0.22 },
+
+      { drum: 'kick', beat: 8, velocity: 0.58 },
+      { drum: 'hihat_closed', beat: 9.5, velocity: 0.22 },
+      { drum: 'rim', beat: 10.5, velocity: 0.42 },
+      { drum: 'hihat_closed', beat: 11.5, velocity: 0.22 },
+
+      { drum: 'kick', beat: 12, velocity: 0.55 },
+      { drum: 'hihat_closed', beat: 13.5, velocity: 0.22 },
+      { drum: 'rim', beat: 14.5, velocity: 0.4 },
+      { drum: 'hihat_closed', beat: 15.5, velocity: 0.22 },
     ],
   },
-};
+}
 
 /* ═══════════════════════════════════════════
  * COMBAT — Battle Music
@@ -477,14 +502,14 @@ export const COMBAT_THEME: SongDefinition = {
     instrument: 'sawtooth_bright',
     lengthBeats: 16,
     notes: [
-      // Measure 1: aggressive A minor
-      n(69, 0.5), n(72, 0.5), n(76, 0.5), r(0.5), n(74, 0.5), n(72, 0.5), n(71, 0.5), n(69, 0.5),
-      // Measure 2: descending attack
-      n(72, 0.5), n(71, 0.5), n(69, 0.5), n(67, 0.5), n(64, 1), r(1),
-      // Measure 3: rapid ascending run
-      n(57, 0.5), n(60, 0.5), n(64, 0.5), n(67, 0.5), n(69, 0.5), n(72, 0.5), n(76, 1),
-      // Measure 4: dramatic resolution
-      n(76, 0.5), n(74, 0.5), n(72, 1), n(69, 2),
+      // A (1-4): tight hook with bite, mostly stepwise descent
+      n(69, 0.5), n(72, 0.5), n(74, 1), n(72, 0.5), n(71, 0.5), n(69, 1),
+      // A' (5-8): same motif, intensified with a leap to E5
+      n(69, 0.5), n(72, 0.5), n(76, 1), n(74, 0.5), n(72, 0.5), n(71, 1),
+      // B (9-12): forward-driving bridge to dominant tension
+      n(67, 0.5), n(69, 0.5), n(71, 0.5), n(72, 0.5), n(74, 1), n(72, 1),
+      // A" (13-16): hook returns for loop-ready close
+      n(69, 0.5), n(72, 0.5), n(74, 1), n(72, 0.5), n(71, 0.5), n(69, 1),
     ],
   },
 
@@ -493,11 +518,11 @@ export const COMBAT_THEME: SongDefinition = {
     instrument: 'square_full',
     lengthBeats: 16,
     notes: [
-      // Am → Dm → E → Am (power chord feeling)
-      n(57, 2), n(52, 2),   // A3, E3
-      n(50, 2), n(57, 2),   // D3, A3
-      n(52, 2), n(56, 2),   // E3, Ab3/G#3
-      n(57, 2), n(52, 2),   // A3, E3
+      // Am → F → Dm → E(→Am implied)
+      n(57, 1), n(64, 1), n(60, 1), n(64, 1),
+      n(53, 1), n(60, 1), n(57, 1), n(60, 1),
+      n(50, 1), n(57, 1), n(53, 1), n(57, 1),
+      n(52, 1), n(56, 1), n(59, 1), n(57, 1),
     ],
   },
 
@@ -506,11 +531,11 @@ export const COMBAT_THEME: SongDefinition = {
     instrument: 'sine_pure',
     lengthBeats: 16,
     notes: [
-      // Driving 8th-note bass
-      n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5),
-      n(38, 0.5), n(38, 0.5), n(38, 0.5), n(38, 0.5), n(38, 0.5), n(38, 0.5), n(38, 0.5), n(38, 0.5),
-      n(40, 0.5), n(40, 0.5), n(40, 0.5), n(40, 0.5), n(40, 0.5), n(40, 0.5), n(40, 0.5), n(40, 0.5),
-      n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5), n(45, 0.5),
+      // Galloping ostinato, less fatiguing than constant 8ths
+      n(45, 1), n(45, 0.5), n(45, 0.5), n(40, 1), n(45, 1),
+      n(41, 1), n(41, 0.5), n(41, 0.5), n(40, 1), n(41, 1),
+      n(38, 1), n(38, 0.5), n(38, 0.5), n(40, 1), n(38, 1),
+      n(40, 1), n(40, 0.5), n(40, 0.5), n(44, 0.5), n(45, 1.5),
     ],
   },
 
@@ -518,28 +543,19 @@ export const COMBAT_THEME: SongDefinition = {
     name: 'combat_drums',
     lengthBeats: 16,
     hits: [
-      // Intense: double-time hihats, kick+snare on every beat
+      // Energetic but cleaner: backbeat snare, syncopated kicks, 8th-note hats
       ...Array.from({ length: 4 }, (_, m) => [
-        { drum: 'kick', beat: m * 4, velocity: 0.8 },
-        { drum: 'hihat_closed', beat: m * 4 + 0.25, velocity: 0.3 },
-        { drum: 'hihat_closed', beat: m * 4 + 0.5, velocity: 0.4 },
-        { drum: 'hihat_closed', beat: m * 4 + 0.75, velocity: 0.3 },
-        { drum: 'snare', beat: m * 4 + 1, velocity: 0.7 },
-        { drum: 'hihat_closed', beat: m * 4 + 1.25, velocity: 0.3 },
-        { drum: 'hihat_closed', beat: m * 4 + 1.5, velocity: 0.4 },
-        { drum: 'hihat_closed', beat: m * 4 + 1.75, velocity: 0.3 },
-        { drum: 'kick', beat: m * 4 + 2, velocity: 0.7 },
-        { drum: 'hihat_closed', beat: m * 4 + 2.25, velocity: 0.3 },
-        { drum: 'hihat_closed', beat: m * 4 + 2.5, velocity: 0.4 },
-        { drum: 'hihat_closed', beat: m * 4 + 2.75, velocity: 0.3 },
-        { drum: 'snare', beat: m * 4 + 3, velocity: 0.7 },
-        { drum: 'hihat_closed', beat: m * 4 + 3.25, velocity: 0.3 },
-        { drum: 'hihat_closed', beat: m * 4 + 3.5, velocity: 0.4 },
-        { drum: 'hihat_closed', beat: m * 4 + 3.75, velocity: 0.3 },
+        { drum: 'kick', beat: m * 4, velocity: 0.78 },
+        { drum: 'hihat_closed', beat: m * 4 + 0.5, velocity: 0.28 },
+        { drum: 'kick', beat: m * 4 + 1.5, velocity: 0.62 },
+        { drum: 'snare', beat: m * 4 + 2, velocity: 0.72 },
+        { drum: 'hihat_closed', beat: m * 4 + 2.5, velocity: 0.32 },
+        { drum: 'kick', beat: m * 4 + 3, velocity: 0.68 },
+        { drum: 'hihat_closed', beat: m * 4 + 3.5, velocity: 0.28 },
       ]).flat(),
     ],
   },
-};
+}
 
 /* ── Song Registry ── */
 

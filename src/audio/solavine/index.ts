@@ -56,6 +56,10 @@ export {
 } from './sequencer';
 export type { ScheduledNote, ScheduledDrumHit } from './sequencer';
 
+/* ── Voice ── */
+export { textToPhonemeIds, buildVoiceFrames, estimateVoiceDuration } from './voice';
+export type { VoiceOptions, VoicePhoneme, VoiceFrame } from './voice';
+
 /* ── Songs ── */
 export { ALL_SONGS, getSong, getSongIds } from './island-songs';
 export {

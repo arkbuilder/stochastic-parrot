@@ -37,6 +37,8 @@ export interface MenuSceneDeps {
   onResume: () => void;
   onLeaderboard: () => void;
   onBestiary: () => void;
+  /** Optional voice bark for touched/clicked items */
+  onSpeakMenuItem?: (label: string) => void;
   getMenuState: () => MenuState;
 }
 
@@ -150,6 +152,9 @@ export class MenuScene implements Scene {
       }
 
       this.selectedIndex = items.findIndex((item) => item.id === selected.id);
+
+      // Speak clicked/tapped item label in 80s voice (if wired)
+      this.deps.onSpeakMenuItem?.(selected.label);
 
       // Locked items show hint instead of navigating
       if (selected.locked) {

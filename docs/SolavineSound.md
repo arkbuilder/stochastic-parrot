@@ -18,6 +18,9 @@ noise buffers, FM operators, and ADSR envelopes.
 
 ### Key Metrics
 
+> Update: includes a new 80s-style voice synthesis path (`playVoice`) using
+> phoneme frames + formant-filtered buzz/noise synthesis for short barks.
+
 | Metric | Before | SolavineSound |
 |---|---|---|
 | Instruments | 4 waveforms | 12 presets (pulse / FM / noise / filtered / vibrato) |

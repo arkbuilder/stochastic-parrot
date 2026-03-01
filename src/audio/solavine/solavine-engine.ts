@@ -42,6 +42,7 @@ import {
   type ScheduledNote,
   type ScheduledDrumHit,
 } from './sequencer';
+import { buildVoiceFrames, type VoiceOptions } from './voice';
 
 /* ── Engine Configuration ── */
 
@@ -170,6 +171,53 @@ export class SolavineEngine {
 
     const now = this.context.currentTime;
     this.synthesizeSfx(def, now);
+  }
+
+  /**
+   * Speak short text in a crude 80s arcade voice.
+   * Uses phoneme frames (buzz + noise + formant filters), not TTS.
+   */
+  playVoice(text: string, options: VoiceOptions = {}): void {
+    if (!this.context || !this.sfxGain || !text.trim()) return;
+
+    const basePitch = clampRange(options.pitchHz ?? 110, 70, 220);
+    const frames = buildVoiceFrames(text, options);
+    const start = this.context.currentTime + 0.01;
+
+    for (const frame of frames) {
+      const when = start + frame.startS;
+      const dur = Math.max(frame.durationS, 0.01);
+      const formants = frame.phoneme.formants;
+      const master = this.context.createGain();
+      master.gain.setValueAtTime(0.0001, when);
+      master.gain.exponentialRampToValueAtTime(0.22, when + Math.min(0.01, dur * 0.25));
+      master.gain.exponentialRampToValueAtTime(0.0001, when + dur + 0.02);
+      master.connect(this.sfxGain);
+
+      if (frame.phoneme.voiced) {
+        const osc = this.context.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(basePitch * frame.phoneme.pitchMul, when);
+        this.routeThroughFormants(osc, formants, master, 0.22);
+        osc.start(when);
+        osc.stop(when + dur + 0.03);
+      }
+
+      if (frame.phoneme.noise > 0.001) {
+        const buffer = this.context.createBuffer(1, Math.max(1, Math.ceil(this.context.sampleRate * (dur + 0.03))), this.context.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+
+        const noise = this.context.createBufferSource();
+        noise.buffer = buffer;
+        const noiseGain = this.context.createGain();
+        noiseGain.gain.value = frame.phoneme.noise * 0.12;
+        noise.connect(noiseGain);
+        this.routeThroughFormants(noiseGain, formants, master, 0.25);
+        noise.start(when);
+        noise.stop(when + dur + 0.03);
+      }
+    }
   }
 
   /* ── Volume Controls ── */
@@ -492,6 +540,32 @@ export class SolavineEngine {
     gainNode.gain.exponentialRampToValueAtTime(0.0001, releaseStart + adsr.release);
   }
 
+  private routeThroughFormants(
+    source: AudioNode,
+    formants: readonly number[],
+    destination: AudioNode,
+    q: number,
+  ): void {
+    if (!this.context) return;
+
+    if (formants.length === 0) {
+      source.connect(destination);
+      return;
+    }
+
+    for (const freq of formants.slice(0, 3)) {
+      const filter = this.context.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = freq;
+      filter.Q.value = Math.max(q, 0.1);
+      const g = this.context.createGain();
+      g.gain.value = 1 / Math.min(formants.length, 3);
+      source.connect(filter);
+      filter.connect(g);
+      g.connect(destination);
+    }
+  }
+
   private getOscillatorType(preset: InstrumentPreset): OscillatorType {
     switch (preset.waveShape) {
       case 'pulse': return 'square'; // Approximate pulse with square (duty cycle applied elsewhere)
@@ -504,4 +578,8 @@ export class SolavineEngine {
 
 function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
+}
+
+function clampRange(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
 }

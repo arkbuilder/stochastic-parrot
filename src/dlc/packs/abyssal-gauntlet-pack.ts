@@ -1,5 +1,5 @@
 /**
- * Abyssal Gauntlet DLC Pack — Endless Roguelike Monster Hunt
+ * Abyssal Gauntlet DLC Pack ï¿½ Endless Roguelike Monster Hunt
  *
  * A fundamentally different campaign: NO learning concepts, landmarks,
  * or minigames. Pure combat/exploration in a Zelda NES-style endless
@@ -7,18 +7,18 @@
  * connected island screens, fighting monsters that scale with distance
  * from spawn. High-score focused.
  *
- * The gauntlet scene generates screens procedurally — island templates
+ * The gauntlet scene generates screens procedurally ï¿½ island templates
  * here serve as overworld routing metadata only.
  *
  * 6 template islands - 0 concepts - Tiers 1-3
  * Unlocked after completing the base AI/ML campaign.
  *
- * Stage 1 — Boneshore Landing   — Tier 1, Danger 1-2
- * Stage 2 — Ironwreck Shallows  — Tier 1, Danger 2-3
- * Stage 3 — Bloodtide Reef      — Tier 2, Danger 3
- * Stage 4 — Abyssal Trench      — Tier 2, Danger 3-4
- * Stage 5 — Leviathan's Maw     — Tier 3, Danger 4
- * Stage 6 — The Drowned Throne  — Tier 3, Danger 5  BOSS
+ * Stage 1 ï¿½ Boneshore Landing   ï¿½ Tier 1, Danger 1-2
+ * Stage 2 ï¿½ Ironwreck Shallows  ï¿½ Tier 1, Danger 2-3
+ * Stage 3 ï¿½ Bloodtide Reef      ï¿½ Tier 2, Danger 3
+ * Stage 4 ï¿½ Abyssal Trench      ï¿½ Tier 2, Danger 3-4
+ * Stage 5 ï¿½ Leviathan's Maw     ï¿½ Tier 3, Danger 4
+ * Stage 6 ï¿½ The Drowned Throne  ï¿½ Tier 3, Danger 5  BOSS
  */
 
 import type { DlcPack } from '../types';
@@ -27,7 +27,7 @@ export const ABYSSAL_GAUNTLET_PACK: DlcPack = {
   manifest: {
     id: 'abyssal-gauntlet',
     title: 'Abyssal Gauntlet',
-    description: 'Endless roguelike monster hunt — slay yer way to glory!',
+    description: 'Endless roguelike monster hunt ï¿½ slay yer way to glory!',
     version: '1.0.0',
     topic: 'Combat Mastery',
     conceptCount: 0,
@@ -98,7 +98,7 @@ export const ABYSSAL_GAUNTLET_PACK: DlcPack = {
       },
     ],
 
-    // No learning concepts — pure combat DLC
+    // No learning concepts ï¿½ pure combat DLC
     concepts: [],
 
     encounters: [
@@ -189,7 +189,7 @@ export const ABYSSAL_GAUNTLET_PACK: DlcPack = {
         name: 'Rust Crab',
         category: 'critter',
         flavour: "A massive hermit crab living inside a ship's boiler.",
-        behaviour: 'Slow patrol. Hard shell — requires combo to crack.',
+        behaviour: 'Slow patrol. Hard shell ï¿½ requires combo to crack.',
         danger: 2,
         habitat: ['Ironwreck Shallows'],
         renderHint: 'crab',
@@ -229,7 +229,7 @@ export const ABYSSAL_GAUNTLET_PACK: DlcPack = {
         name: 'The Drowned King',
         category: 'critter',
         flavour: 'Ancient monarch of the deep, wielding a coral trident and tidal magic.',
-        behaviour: 'Boss. Three-phase fight — learn patterns to survive.',
+        behaviour: 'Boss. Three-phase fight ï¿½ learn patterns to survive.',
         danger: 5,
         habitat: ['The Drowned Throne'],
         renderHint: 'boss_king',
@@ -289,7 +289,7 @@ export const ABYSSAL_GAUNTLET_PACK: DlcPack = {
         name: 'Bone Bridge',
         category: 'terrain',
         flavour: 'A rickety bridge made from the ribs of a leviathan.',
-        behaviour: 'Connects islands. Crumbles under weight — cross quickly.',
+        behaviour: 'Connects islands. Crumbles under weight ï¿½ cross quickly.',
         danger: 1,
         habitat: ['Boneshore Landing', 'Ironwreck Shallows', 'Bloodtide Reef'],
         renderHint: 'bridge',
@@ -306,7 +306,7 @@ export const ABYSSAL_GAUNTLET_PACK: DlcPack = {
       },
     ],
 
-    // No minigames — pure combat DLC
+    // No minigames ï¿½ pure combat DLC
     minigames: [],
   },
 };

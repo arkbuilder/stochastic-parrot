@@ -487,6 +487,30 @@ export class OverworldScene implements Scene {
         ctx.textBaseline = 'alphabetic';
       }
 
+      // Green checkmark badge for completed islands
+      if (completed) {
+        const cx = node.x + 9;
+        const cy = node.y - 9;
+        // Circle background
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+        ctx.fill();
+        // Checkmark stroke
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx - 2.5, cy);
+        ctx.lineTo(cx - 0.5, cy + 2);
+        ctx.lineTo(cx + 3, cy - 2);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+      }
+
       // Grade below
       if (result) {
         ctx.fillStyle = TOKENS.colorYellow400;

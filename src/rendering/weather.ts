@@ -37,14 +37,12 @@ export function renderWeatherBackground(
     ctx.fillRect(0, 0, w, h);
   }
 
-  // ── Fog banks ──
-  if (state.fogOpacity > 0.01) {
-    for (const p of state.particles) {
-      if (p.kind === 'fog') {
-        drawFogBlob(ctx, p);
-      }
-    }
-  }
+  // ── Fog banks (disabled — visual noise with current art style) ──
+  // if (state.fogOpacity > 0.01) {
+  //   for (const p of state.particles) {
+  //     if (p.kind === 'fog') drawFogBlob(ctx, p);
+  //   }
+  // }
 
   // ── Lightning flash (scene-wide burst) ──
   if (state.lightning && state.lightning.flash > 0.05) {
@@ -167,11 +165,32 @@ function drawGlowOrb(ctx: CanvasRenderingContext2D, p: WeatherParticle, t: numbe
   ctx.fill();
 }
 
+/**
+ * Fog motes — each fog "particle" spawns a cluster of small
+ * translucent circles at deterministic offsets (seeded from
+ * position so the pattern is stable frame-to-frame).
+ */
+const FOG_MOTE_COUNT = 6;
+
 function drawFogBlob(ctx: CanvasRenderingContext2D, p: WeatherParticle): void {
-  ctx.fillStyle = rgba('#94a3b8', p.alpha);
-  ctx.beginPath();
-  ctx.ellipse(p.x, p.y, p.size, p.size * 0.4, 0, 0, Math.PI * 2);
-  ctx.fill();
+  const baseAlpha = p.alpha * 0.55;
+  // Seed scatter from particle position so it doesn't jitter.
+  const seed = (p.x * 7.3 + p.y * 3.1) | 0;
+  for (let i = 0; i < FOG_MOTE_COUNT; i++) {
+    // Deterministic pseudo-random offsets per mote
+    const hash = Math.sin(seed + i * 91.7) * 4371.13;
+    const frac = hash - Math.floor(hash);           // 0..1
+    const hash2 = Math.sin(seed + i * 47.3) * 2719.97;
+    const frac2 = hash2 - Math.floor(hash2);         // 0..1
+    const dx = (frac - 0.5) * p.size * 1.6;
+    const dy = (frac2 - 0.5) * p.size * 0.7;
+    const r  = 2 + frac * 4;                         // radius 2..6
+    const a  = baseAlpha * (0.5 + frac2 * 0.5);      // vary opacity
+    ctx.fillStyle = rgba('#94a3b8', a);
+    ctx.beginPath();
+    ctx.arc(p.x + dx, p.y + dy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawRipple(ctx: CanvasRenderingContext2D, p: WeatherParticle): void {

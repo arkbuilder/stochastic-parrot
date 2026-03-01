@@ -93,7 +93,7 @@ export function createWeatherState(encounterType: EncounterWeatherType): Weather
     windX: 0,
     particles: [],
     lightning: null,
-    fogOpacity: preset.primary === 'fog' ? preset.intensity * 0.5 : 0,
+    fogOpacity: 0, // fog rendering disabled
     darkenOverlay: preset.primary === 'storm' ? 0.15 : preset.primary === 'rain' ? 0.08 : 0,
     elapsed: 0,
   };
@@ -125,9 +125,8 @@ export function updateWeatherSystem(
   }
 
   // ── Derived state ──
-  state.fogOpacity = state.kind === 'fog' ? state.intensity * 0.45 + Math.sin(state.elapsed * 0.3) * 0.05
-    : state.kind === 'ash' ? state.intensity * 0.12
-    : 0;
+  // Fog rendering disabled — force fogOpacity to 0
+  state.fogOpacity = 0;
   state.darkenOverlay = state.kind === 'storm' ? 0.12 + state.intensity * 0.08
     : state.kind === 'rain' ? 0.06 + state.intensity * 0.04
     : state.kind === 'fog' ? 0.04
@@ -138,7 +137,8 @@ export function updateWeatherSystem(
   const toSpawn = Math.floor(rate * dt + (Math.random() < (rate * dt % 1) ? 1 : 0));
 
   for (let i = 0; i < toSpawn && state.particles.length < MAX_PARTICLES; i++) {
-    state.particles.push(spawnParticle(state.kind, state.windX));
+    const p = spawnParticle(state.kind, state.windX);
+    if (p) state.particles.push(p);
   }
 
   // ── Update particles ──
@@ -234,16 +234,8 @@ function spawnParticle(kind: WeatherKind, windX: number): WeatherParticle {
       };
 
     case 'fog':
-      return {
-        x: Math.random() * GAME_W,
-        y: 40 + Math.random() * (GAME_H - 80),
-        vx: windX * 12 + (Math.random() - 0.5) * 8,
-        vy: (Math.random() - 0.5) * 4,
-        life: 4 + Math.random() * 4,
-        size: 30 + Math.random() * 40,
-        kind: 'fog',
-        alpha: 0.08 + Math.random() * 0.06,
-      };
+      // Fog particles disabled — skip spawning
+      return null as unknown as WeatherParticle;
 
     case 'ash':
       return {

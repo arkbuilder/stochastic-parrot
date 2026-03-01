@@ -62,15 +62,14 @@ describe('Weather Renderer — renderWeatherBackground', () => {
     }
   });
 
-  it('draws fog blobs when fogOpacity > 0', () => {
+  it('fog rendering is disabled — no fog arc calls even for fog weather', () => {
     const state = tickedState('fog');
     const ctx = makeCtx();
     renderWeatherBackground(ctx, state, 240, 400);
-    // Fog particles should produce ellipse calls
+    // Fog is disabled: fogOpacity forced to 0, no fog particles spawned
+    expect(state.fogOpacity).toBe(0);
     const fogParticles = state.particles.filter((p) => p.kind === 'fog');
-    if (fogParticles.length > 0 && state.fogOpacity > 0.01) {
-      expect(ctx.ellipse).toHaveBeenCalled();
-    }
+    expect(fogParticles.length).toBe(0);
   });
 
   it('draws lightning flash when active', () => {

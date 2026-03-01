@@ -33,10 +33,11 @@ describe('Weather System — createWeatherState', () => {
     }
   });
 
-  it('fog encounter starts with fog weather', () => {
+  it('fog encounter starts with fog weather (fog rendering disabled)', () => {
     const state = createWeatherState('fog');
     expect(state.kind).toBe('fog');
-    expect(state.fogOpacity).toBeGreaterThan(0);
+    // Fog rendering is disabled — fogOpacity forced to 0
+    expect(state.fogOpacity).toBe(0);
   });
 
   it('storm encounter starts with storm weather', () => {
@@ -81,10 +82,10 @@ describe('Weather System — updateWeatherSystem', () => {
     expect(drops.length).toBeGreaterThan(0);
   });
 
-  it('fog produces fog particles', () => {
+  it('fog particles are no longer spawned (fog disabled)', () => {
     const state = tickWeather('fog', 0.1, 40);
     const fogParticles = state.particles.filter((p) => p.kind === 'fog');
-    expect(fogParticles.length).toBeGreaterThan(0);
+    expect(fogParticles.length).toBe(0);
   });
 
   it('ash produces ash particles', () => {
@@ -210,9 +211,9 @@ describe('Weather System — transitions', () => {
 // ── Fog and darken values ────────────────────────────────────
 
 describe('Weather System — fog and darkness', () => {
-  it('fog weather has positive fogOpacity', () => {
+  it('fog weather has zero fogOpacity (fog disabled)', () => {
     const state = tickWeather('fog', 0.1, 10);
-    expect(state.fogOpacity).toBeGreaterThan(0);
+    expect(state.fogOpacity).toBe(0);
   });
 
   it('storm weather has positive darkenOverlay', () => {

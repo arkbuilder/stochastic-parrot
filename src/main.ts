@@ -917,6 +917,10 @@ const menuScene = new MenuScene({
   onBestiary: () => {
     goToBestiary();
   },
+  onSpeakMenuItem: (label: string) => {
+    audioManager.resume().catch(() => {});
+    audioManager.playVoice(label, { pitchHz: 108, speed: 1.2 });
+  },
   getMenuState: () => ({
     hasResumableSession: resumableSession !== null,
     hasBestiary: true,

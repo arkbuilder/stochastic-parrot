@@ -88,6 +88,11 @@ export class AudioManager {
     this.engine.stopSong();
   }
 
+  /** Speak a short phrase in the retro procedural voice. */
+  playVoice(text: string, options?: { pitchHz?: number; speed?: number }): void {
+    this.engine.playVoice(text, options);
+  }
+
   /* ── Volume Controls ── */
 
   setMuted(muted: boolean): void {

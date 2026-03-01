@@ -108,8 +108,8 @@ export const CYBERSECURITY_PACK: DlcPack = {
       // DLCs can add new encounter types if desired.
     ],
     overworldNodes: [
-      { islandId: 'dlc_cipher_cove', name: 'Cipher Cove', x: 80, y: 80 },
-      { islandId: 'dlc_fortress_harbor', name: 'Fortress Harbor', x: 140, y: 60 },
+      { islandId: 'dlc_cipher_cove', name: 'Cipher Cove', x: 70, y: 240 },
+      { islandId: 'dlc_fortress_harbor', name: 'Fortress Harbor', x: 170, y: 140 },
     ],
     bestiary: [
       {

@@ -12,7 +12,7 @@ import { EncounterScene } from './scenes/encounter-scene';
 import { IslandScene } from './scenes/island-scene';
 import { createSkillTree, type SkillTreeState } from './systems/skill-tree';
 import { RewardScene } from './scenes/reward-scene';
-import { OverworldScene } from './scenes/overworld-scene';
+import { OverworldScene, MAP_THEMES } from './scenes/overworld-scene';
 import { LeaderboardScene } from './scenes/leaderboard-scene';
 import { PauseScene, type ConceptJournalEntry } from './scenes/pause-scene';
 import { AudioManager } from './audio/audio-manager';
@@ -303,7 +303,16 @@ function goToMenu(): void {
   (window as Window & { __dr_scene?: string }).__dr_scene = 'menu';
 }
 
-function goToOverworld(fromIslandId?: string, nodesOverride?: import('./data/progression').OverworldNodeConfig[]): void {
+/** Tracks the active campaign theme so mid-game goToOverworld() calls preserve it */
+let activeCampaignTheme: string | undefined;
+
+function goToOverworld(
+  fromIslandId?: string,
+  nodesOverride?: import('./data/progression').OverworldNodeConfig[],
+  themeId?: string,
+): void {
+  if (themeId !== undefined) activeCampaignTheme = themeId;
+  const resolvedTheme = themeId ?? activeCampaignTheme;
   if (stateMachine.current === 'menu' || stateMachine.current === 'pause') {
     transitionState('play', 'overworld_open');
   }
@@ -312,6 +321,7 @@ function goToOverworld(fromIslandId?: string, nodesOverride?: import('./data/pro
     progress: getOverworldProgressSnapshot(),
     fromIslandId,
     nodes: nodesOverride ?? getAllOverworldNodes() as import('./data/progression').OverworldNodeConfig[],
+    theme: resolvedTheme ? MAP_THEMES[resolvedTheme] : undefined,
     telemetry,
     audio: audioManager,
     onIslandArrive: (islandId) => {
@@ -941,15 +951,14 @@ function goToCampaignSelect(): void {
       if (campaignId === 'base') {
         // Base game — clear session and launch default overworld
         saveSessionState(null);
-        goToOverworld();
+        goToOverworld(undefined, undefined, 'base');
       } else {
         // DLC campaign — filter overworld to DLC-specific nodes
         saveSessionState(null);
-        const dlcPrefix = campaignId === 'rocket-science' ? 'dlc_' : `dlc_`;
         const dlcNodes = getAllOverworldNodes().filter(
-          (n) => n.islandId.startsWith(dlcPrefix),
+          (n) => n.islandId.startsWith('dlc_'),
         );
-        goToOverworld(undefined, dlcNodes.length > 0 ? dlcNodes : undefined);
+        goToOverworld(undefined, dlcNodes.length > 0 ? dlcNodes : undefined, campaignId);
       }
     },
     onBack: () => {

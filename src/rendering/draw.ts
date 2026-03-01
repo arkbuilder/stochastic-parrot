@@ -748,6 +748,8 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, x: number, y: number, k
     case 'sand_wyrm':   drawSandWyrm(ctx, x, y, t, burrowPhase ?? 'chasing', burrowTimer ?? 0); break;
     case 'urchin':      drawUrchin(ctx, x, y, t, spikesOut ?? false); break;
     case 'ray':         drawRay(ctx, x, y, t); break;
+    case 'cyborg_crab':  drawCyborgCrab(ctx, x, y, t); break;
+    case 'cyborg_jelly': drawCyborgJelly(ctx, x, y, t); break;
     default:            drawCrab(ctx, x, y, t); break;
   }
 }
@@ -1454,6 +1456,8 @@ export function drawFlora(
     case 'storm_pine': drawStormPine(ctx, t); break;
     case 'glow_kelp': drawGlowKelp(ctx, t); break;
     case 'sea_anemone': drawSeaAnemone(ctx, t); break;
+    case 'cyber_kelp': drawCyberKelp(ctx, t); break;
+    case 'cyber_coral': drawCyberCoral(ctx, t); break;
     default: /* unknown kind — draw a simple bush */
       ctx.fillStyle = '#2d6a4f';
       ctx.beginPath(); ctx.arc(0, -4, 5, 0, Math.PI * 2); ctx.fill();
@@ -1689,6 +1693,7 @@ export function drawTerrain(
     case 'tile_volcanic': drawTerrainVolcanic(ctx, t); break;
     case 'tile_reef_pools': drawTerrainReefPools(ctx, t); break;
     case 'tile_mossy_stone': drawTerrainMossyStone(ctx); break;
+    case 'cyber_reef': drawTerrainCyberReef(ctx, t); break;
     default:
       ctx.fillStyle = '#444';
       ctx.fillRect(-6, -6, 12, 12);
@@ -1863,4 +1868,284 @@ function drawTerrainMossyStone(ctx: CanvasRenderingContext2D): void {
   ctx.fillRect(-5, -5, 3, 2);
   ctx.fillRect(2, 2, 3, 2);
   ctx.fillRect(-2, 4, 2, 1);
+}
+
+// ════════════════════════════════════════════════════════════════
+// CYBORG DRAW FUNCTIONS — Rocket Science DLC
+// Robotic / mechanical aesthetic: metallic bodies, glowing LEDs,
+// exposed circuitry, rivets, exhaust vents, scanner eyes.
+// ════════════════════════════════════════════════════════════════
+
+/* ── Cyborg Crab — steel shell, exhaust vents, scanner eye ── */
+function drawCyborgCrab(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: number): void {
+  const scuttle = Math.sin(t * 7) * 1.5;
+
+  // Shadow (faint, tech-blue)
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 7, 9, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body — brushed steel
+  ctx.fillStyle = '#6b7280';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + scuttle * 0.3, 8, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Armour plate highlight
+  ctx.fillStyle = '#9ca3af';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 1 + scuttle * 0.3, 5, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Rivet dots
+  ctx.fillStyle = '#d1d5db';
+  ctx.fillRect(cx - 3, cy - 2 + scuttle * 0.3, 1, 1);
+  ctx.fillRect(cx + 2, cy - 2 + scuttle * 0.3, 1, 1);
+
+  // Scanner eye (left = red LED, right = dark lens)
+  const scanPulse = 0.5 + Math.sin(t * 6) * 0.5;
+  ctx.fillStyle = `rgba(239, 68, 68, ${scanPulse})`;
+  ctx.beginPath();
+  ctx.arc(cx - 4, cy - 5 + Math.sin(t * 4) * 0.6, 2, 0, Math.PI * 2);
+  ctx.fill();
+  // Glow ring
+  ctx.strokeStyle = `rgba(239, 68, 68, ${scanPulse * 0.4})`;
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.arc(cx - 4, cy - 5 + Math.sin(t * 4) * 0.6, 3, 0, Math.PI * 2);
+  ctx.stroke();
+  // Dark camera lens (right)
+  ctx.fillStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.arc(cx + 4, cy - 5 + Math.sin(t * 4) * 0.6, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#4b5563';
+  ctx.beginPath();
+  ctx.arc(cx + 4, cy - 5.5 + Math.sin(t * 4) * 0.6, 0.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Exhaust vents (rear) — small blue flame puffs
+  const ventFlicker = Math.sin(t * 14) * 1.2;
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.5)';
+  ctx.beginPath();
+  ctx.arc(cx - 2, cy + 5 + ventFlicker, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx + 2, cy + 5 - ventFlicker, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mechanical claws — chrome pincers
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 2;
+  const clawAngle = Math.sin(t * 4) * 0.35;
+  ctx.beginPath();
+  ctx.moveTo(cx - 8, cy);
+  ctx.lineTo(cx - 12, cy - 3 + scuttle);
+  ctx.lineTo(cx - 9, cy - 6 + scuttle + clawAngle * 3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + 8, cy);
+  ctx.lineTo(cx + 12, cy - 3 + scuttle);
+  ctx.lineTo(cx + 9, cy - 6 + scuttle - clawAngle * 3);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // Hydraulic legs (3 per side)
+  ctx.strokeStyle = '#4b5563';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    const legPhase = Math.sin(t * 9 + i * 1.2) * 2;
+    // Leg segment
+    ctx.beginPath(); ctx.moveTo(cx - 6, cy + 2 + i * 2); ctx.lineTo(cx - 10, cy + 4 + i * 2 + legPhase); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + 6, cy + 2 + i * 2); ctx.lineTo(cx + 10, cy + 4 + i * 2 - legPhase); ctx.stroke();
+    // Joint dot
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillRect(cx - 10, cy + 3 + i * 2 + legPhase, 1.5, 1.5);
+    ctx.fillRect(cx + 9, cy + 3 + i * 2 - legPhase, 1.5, 1.5);
+  }
+}
+
+/* ── Cyborg Jelly — transparent dome, circuit veins, LED tentacles ── */
+function drawCyborgJelly(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: number): void {
+  const pulse = Math.sin(t * 2.5) * 2;
+
+  // Glass dome (translucent cyan)
+  ctx.fillStyle = 'rgba(34, 211, 238, 0.25)';
+  ctx.beginPath();
+  ctx.arc(cx, cy - 2, 7 + pulse * 0.4, Math.PI, 0);
+  ctx.quadraticCurveTo(cx + 8, cy + 1, cx, cy + 2);
+  ctx.quadraticCurveTo(cx - 8, cy + 1, cx - 7 - pulse * 0.4, cy - 2);
+  ctx.fill();
+  // Chrome rim
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy + 1, 7, 0, Math.PI);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // Internal reactor glow
+  const reactorPulse = 0.4 + Math.sin(t * 4) * 0.3;
+  ctx.fillStyle = `rgba(56, 189, 248, ${reactorPulse})`;
+  ctx.beginPath();
+  ctx.arc(cx, cy - 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Circuit-vein lines inside dome
+  ctx.strokeStyle = `rgba(34, 211, 238, ${0.3 + Math.sin(t * 3) * 0.15})`;
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 2); ctx.lineTo(cx - 4, cy - 6);
+  ctx.moveTo(cx, cy - 2); ctx.lineTo(cx + 4, cy - 6);
+  ctx.moveTo(cx, cy - 2); ctx.lineTo(cx, cy - 8);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // Robot eyes (LED dots)
+  ctx.fillStyle = '#f0fdfa';
+  ctx.beginPath(); ctx.arc(cx - 2, cy - 3, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 2, cy - 3, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#06b6d4';
+  ctx.fillRect(cx - 2.5, cy - 3.5, 1, 1);
+  ctx.fillRect(cx + 1.5, cy - 3.5, 1, 1);
+
+  // Mechanical tentacles (segmented with LED joints)
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 4; i++) {
+    const tx = cx - 4 + i * 3;
+    ctx.beginPath();
+    ctx.moveTo(tx, cy + 2);
+    for (let seg = 1; seg <= 3; seg++) {
+      const sx = tx + Math.sin(t * 1.8 + i + seg) * 3;
+      const sy = cy + 2 + seg * 4;
+      ctx.lineTo(sx, sy);
+      // Joint LED
+      if (seg < 3) {
+        ctx.stroke();
+        ctx.fillStyle = `rgba(56, 189, 248, ${0.5 + Math.sin(t * 5 + i + seg) * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.lineWidth = 1;
+}
+
+/* ── Cyber Kelp — metal-framed fronds with neon tips ── */
+function drawCyberKelp(ctx: CanvasRenderingContext2D, t: number): void {
+  const sway = Math.sin(t * 1.0) * 1.5;
+
+  // Metal stem
+  ctx.fillStyle = '#4b5563';
+  ctx.fillRect(-1, -4, 2, 14);
+  // Bolts on stem
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillRect(-0.5, 0, 1, 1);
+  ctx.fillRect(-0.5, 4, 1, 1);
+
+  // Fronds (3) — metal struts w/ neon tips
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth = 1.5;
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, -4 + (i + 1) * 3);
+    const tipX = i * 6 + sway;
+    const tipY = -8 + (i + 1) * 2;
+    ctx.quadraticCurveTo(i * 4 + sway * 0.5, tipY + 4, tipX, tipY);
+    ctx.stroke();
+    // Neon tip
+    const tipGlow = 0.5 + Math.sin(t * 4 + i * 2) * 0.4;
+    ctx.fillStyle = `rgba(34, 211, 238, ${tipGlow})`;
+    ctx.beginPath();
+    ctx.arc(tipX, tipY, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.lineWidth = 1;
+}
+
+/* ── Cyber Coral — geometric angular coral with LED nodes ── */
+function drawCyberCoral(ctx: CanvasRenderingContext2D, t: number): void {
+  // Base plate (metal)
+  ctx.fillStyle = '#374151';
+  ctx.fillRect(-6, 2, 12, 4);
+  // Rivet
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillRect(-4, 3, 1, 1);
+  ctx.fillRect(3, 3, 1, 1);
+
+  // Angular branches (geometric, not organic)
+  ctx.strokeStyle = '#6b7280';
+  ctx.lineWidth = 2;
+  // Left branch
+  ctx.beginPath(); ctx.moveTo(-3, 2); ctx.lineTo(-5, -4); ctx.lineTo(-7, -8); ctx.stroke();
+  // Centre branch
+  ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(1, -6); ctx.lineTo(-1, -10); ctx.stroke();
+  // Right branch
+  ctx.beginPath(); ctx.moveTo(3, 2); ctx.lineTo(5, -3); ctx.lineTo(6, -7); ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // LED nodes at branch tips
+  const branchTips = [
+    { x: -7, y: -8 },
+    { x: -1, y: -10 },
+    { x: 6, y: -7 },
+  ];
+  for (let i = 0; i < branchTips.length; i++) {
+    const tip = branchTips[i]!;
+    const glow = 0.4 + Math.sin(t * 3 + i * 2.1) * 0.4;
+    // Outer glow
+    ctx.fillStyle = `rgba(251, 191, 36, ${glow * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(tip.x, tip.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    // Core
+    ctx.fillStyle = `rgba(251, 191, 36, ${glow})`;
+    ctx.beginPath();
+    ctx.arc(tip.x, tip.y, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Sparks (occasional flicker)
+  const sparkPhase = (t * 7) % 6;
+  if (sparkPhase < 1) {
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.6)';
+    ctx.fillRect(-1 + Math.sin(t * 20) * 3, -5, 1, 1);
+  }
+}
+
+/* ── Terrain: Cyber Reef — metallic rubble with blinking lights ── */
+function drawTerrainCyberReef(ctx: CanvasRenderingContext2D, t: number): void {
+  // Dark metal ground
+  ctx.fillStyle = '#1f2937';
+  ctx.fillRect(-8, -8, 16, 16);
+
+  // Metal debris chunks
+  ctx.fillStyle = '#374151';
+  ctx.fillRect(-6, -4, 5, 4);
+  ctx.fillRect(1, -2, 4, 5);
+  ctx.fillRect(-3, 3, 6, 3);
+
+  // Panel seams
+  ctx.strokeStyle = '#4b5563';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(-8, 0); ctx.lineTo(8, -1);
+  ctx.moveTo(0, -8); ctx.lineTo(1, 8);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // Blinking indicator LEDs (small coloured dots)
+  const led1 = Math.sin(t * 3) > 0.3 ? 1 : 0.15;
+  const led2 = Math.sin(t * 3 + 2) > 0.3 ? 1 : 0.15;
+  const led3 = Math.sin(t * 3 + 4) > 0.3 ? 1 : 0.15;
+  ctx.fillStyle = `rgba(239, 68, 68, ${led1})`;
+  ctx.fillRect(-5, -3, 2, 2);
+  ctx.fillStyle = `rgba(56, 189, 248, ${led2})`;
+  ctx.fillRect(2, 0, 2, 2);
+  ctx.fillStyle = `rgba(74, 222, 128, ${led3})`;
+  ctx.fillRect(-1, 4, 2, 2);
 }

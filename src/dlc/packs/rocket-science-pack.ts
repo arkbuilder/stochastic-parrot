@@ -168,7 +168,7 @@ export const ROCKET_SCIENCE_PACK: DlcPack = {
         behaviour: 'Jet-dashes between patrol points. Stuns on contact.',
         danger: 2,
         habitat: ['Launchpad Lagoon', 'Booster Reef'],
-        renderHint: 'fire_crab',
+        renderHint: 'cyborg_crab',
       },
       {
         id: 'stellar_jelly',
@@ -178,7 +178,7 @@ export const ROCKET_SCIENCE_PACK: DlcPack = {
         behaviour: 'Floats in gentle arcs. Contact causes a gravity pull.',
         danger: 2,
         habitat: ['Orbit Atoll', 'Nebula Shallows'],
-        renderHint: 'jellyfish',
+        renderHint: 'cyborg_jelly',
       },
       {
         id: 'void_eel',
@@ -188,7 +188,7 @@ export const ROCKET_SCIENCE_PACK: DlcPack = {
         behaviour: 'Ambush predator. Appears when the player stops moving.',
         danger: 4,
         habitat: ['Nebula Shallows', "Kraken's Void"],
-        renderHint: 'snake',
+        renderHint: 'cyborg_snake',
       },
       {
         id: 'space_kraken',
@@ -198,7 +198,7 @@ export const ROCKET_SCIENCE_PACK: DlcPack = {
         behaviour: 'Boss. Phase-shifts between grabbing, ink-blasting, and roaring.',
         danger: 5,
         habitat: ["Kraken's Void"],
-        renderHint: 'squid',
+        renderHint: 'cyborg_squid',
       },
       {
         id: 'nebula_kelp',
@@ -208,7 +208,7 @@ export const ROCKET_SCIENCE_PACK: DlcPack = {
         behaviour: 'Decorative. Sways gently. Marks safe zones.',
         danger: 0,
         habitat: ['Nebula Shallows', "Kraken's Void"],
-        renderHint: 'glow_kelp',
+        renderHint: 'cyber_kelp',
       },
       {
         id: 'launch_coral',
@@ -218,7 +218,7 @@ export const ROCKET_SCIENCE_PACK: DlcPack = {
         behaviour: 'Decorative. Crumbles into sparks when brushed.',
         danger: 0,
         habitat: ['Launchpad Lagoon', 'Booster Reef'],
-        renderHint: 'dead_coral',
+        renderHint: 'cyber_coral',
       },
       {
         id: 'asteroid_field',
@@ -228,7 +228,7 @@ export const ROCKET_SCIENCE_PACK: DlcPack = {
         behaviour: 'Obstacle. Rocks drift slowly; collision stuns.',
         danger: 3,
         habitat: ['Orbit Atoll', 'Nebula Shallows', "Kraken's Void"],
-        renderHint: 'reef',
+        renderHint: 'cyber_reef',
       },
     ],
 

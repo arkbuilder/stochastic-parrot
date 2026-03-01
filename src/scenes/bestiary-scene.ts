@@ -515,6 +515,43 @@ export class BestiaryScene implements Scene {
         }
         ctx.lineWidth = 1;
         break;
+      case 'cyborg_snake': {
+        // Segmented metal eel — dark body with scanner eye
+        ctx.strokeStyle = '#4b5563';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - 6, cy);
+        for (let s = 0; s < 4; s++) {
+          ctx.lineTo(cx - 4 + s * 3, cy - 2 + Math.sin(t * 3 + s) * 2);
+        }
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        // Scanner eye (front)
+        const scanPulse = 0.5 + Math.sin(t * 6) * 0.5;
+        ctx.fillStyle = `rgba(239, 68, 68, ${scanPulse})`;
+        ctx.beginPath(); ctx.arc(cx + 6, cy - 1, 1.5, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'cyborg_squid': {
+        // Mechanical squid — chrome body, reactor core
+        ctx.fillStyle = '#6b7280';
+        ctx.beginPath(); ctx.ellipse(cx, cy - 2, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+        // Reactor core
+        const corePulse = 0.4 + Math.sin(t * 4) * 0.4;
+        ctx.fillStyle = `rgba(56, 189, 248, ${corePulse})`;
+        ctx.beginPath(); ctx.arc(cx, cy - 2, 2, 0, Math.PI * 2); ctx.fill();
+        // Metal tentacles
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          ctx.moveTo(cx - 3 + i * 3, cy + 2);
+          ctx.lineTo(cx - 3 + i * 3 + Math.sin(t * 2 + i) * 2, cy + 7);
+          ctx.stroke();
+        }
+        ctx.lineWidth = 1;
+        break;
+      }
     }
   }
 
@@ -615,6 +652,94 @@ export class BestiaryScene implements Scene {
             );
           }
           ctx.stroke();
+        }
+        ctx.lineWidth = 1;
+        break;
+      }
+      case 'cyborg_snake': {
+        // Segmented metal eel — long articulated body
+        const bodyY2 = cy - 5 + Math.sin(t * 0.6) * 3;
+        // Segmented body
+        ctx.strokeStyle = '#4b5563';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(cx - 30, bodyY2 + 5);
+        for (let s = 0; s < 8; s++) {
+          ctx.lineTo(cx - 26 + s * 8, bodyY2 + Math.sin(t * 2 + s * 0.8) * 6);
+        }
+        ctx.stroke();
+        // Armour plate highlights
+        ctx.strokeStyle = '#9ca3af';
+        ctx.lineWidth = 2;
+        for (let s = 0; s < 7; s++) {
+          const sx = cx - 28 + s * 8;
+          const sy = bodyY2 + Math.sin(t * 2 + s * 0.8) * 6;
+          ctx.beginPath(); ctx.moveTo(sx, sy - 3); ctx.lineTo(sx, sy + 3); ctx.stroke();
+        }
+        ctx.lineWidth = 1;
+        // Scanner eye (head)
+        const headX = cx + 30;
+        const headY = bodyY2 + Math.sin(t * 2 + 5.6) * 6;
+        ctx.fillStyle = '#374151';
+        ctx.beginPath(); ctx.ellipse(headX, headY, 6, 5, 0, 0, Math.PI * 2); ctx.fill();
+        const eScan = 0.5 + Math.sin(t * 6) * 0.5;
+        ctx.fillStyle = `rgba(239, 68, 68, ${eScan})`;
+        ctx.beginPath(); ctx.arc(headX + 3, headY - 1, 2.5, 0, Math.PI * 2); ctx.fill();
+        // Scan beam
+        ctx.strokeStyle = `rgba(239, 68, 68, ${eScan * 0.3})`;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(headX + 5, headY - 1); ctx.lineTo(headX + 20, headY - 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(headX + 5, headY - 1); ctx.lineTo(headX + 20, headY + 4); ctx.stroke();
+        ctx.lineWidth = 1;
+        break;
+      }
+      case 'cyborg_squid': {
+        // Mechanical kraken — chrome body, reactor core, hydraulic tentacles
+        const bY = cy - 5 + Math.sin(t * 0.7) * 2;
+        // Chrome body
+        ctx.fillStyle = '#6b7280';
+        ctx.beginPath(); ctx.ellipse(cx, bY, 22, 15, 0, 0, Math.PI * 2); ctx.fill();
+        // Armour plates
+        ctx.fillStyle = '#9ca3af';
+        ctx.beginPath(); ctx.arc(cx - 9, bY - 4, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + 9, bY + 2, 3.5, 0, Math.PI * 2); ctx.fill();
+        // Rivets
+        ctx.fillStyle = '#d1d5db';
+        for (let i = 0; i < 4; i++) {
+          ctx.fillRect(cx - 14 + i * 9, bY - 8, 2, 2);
+        }
+        // Reactor core
+        const coreGlow = 0.4 + Math.sin(t * 4) * 0.4;
+        ctx.fillStyle = `rgba(56, 189, 248, ${coreGlow})`;
+        ctx.beginPath(); ctx.arc(cx, bY, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(56, 189, 248, ${coreGlow * 0.3})`;
+        ctx.beginPath(); ctx.arc(cx, bY, 10, 0, Math.PI * 2); ctx.fill();
+        // Camera eyes
+        ctx.fillStyle = '#1f2937';
+        ctx.beginPath(); ctx.arc(cx - 7, bY - 2, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + 7, bY - 2, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath(); ctx.arc(cx - 6.5, bY - 2, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + 7.5, bY - 2, 1.5, 0, Math.PI * 2); ctx.fill();
+        // Hydraulic tentacles
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 2.5;
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ctx.moveTo(cx - 16 + i * 8, bY + 13);
+          for (let s = 1; s <= 3; s++) {
+            const sx = cx - 16 + i * 8 + Math.sin(t * 1.8 + i + s) * 6;
+            const sy = bY + 13 + s * 8;
+            ctx.lineTo(sx, sy);
+          }
+          ctx.stroke();
+          // Joint LEDs
+          for (let s = 1; s <= 2; s++) {
+            const jx = cx - 16 + i * 8 + Math.sin(t * 1.8 + i + s) * 6;
+            const jy = bY + 13 + s * 8;
+            ctx.fillStyle = `rgba(56, 189, 248, ${0.4 + Math.sin(t * 5 + i + s) * 0.3})`;
+            ctx.beginPath(); ctx.arc(jx, jy, 1.5, 0, Math.PI * 2); ctx.fill();
+          }
         }
         ctx.lineWidth = 1;
         break;

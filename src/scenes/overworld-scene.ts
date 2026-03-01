@@ -7,7 +7,7 @@ import type { TelemetryClient } from '../telemetry/telemetry-client';
 import { TELEMETRY_EVENTS } from '../telemetry/events';
 import { TOKENS } from '../rendering/tokens';
 import {
-  drawSkyGradient, drawOceanGradient, drawStars, drawShip,
+  drawSkyGradient, drawStars, drawShip,
   drawVignette, drawButton, roundRect, rgba, drawPulsingArrow,
 } from '../rendering/draw';
 import type { OverworldProgress } from './flow-types';
@@ -15,11 +15,109 @@ import { OVERWORLD_NODES, type OverworldNodeConfig } from '../data/progression';
 import { createWeatherState, updateWeatherSystem, type WeatherState } from '../systems/weather-system';
 import { renderWeatherForeground } from '../rendering/weather';
 
+// ── Map themes ───────────────────────────────────────────────
+
+export interface MapTheme {
+  skyTop: string;
+  skyBottom: string;
+  /** Four ocean gradient stops (surface → deep) */
+  ocean: [string, string, string, string];
+  /** RGBA tint for wave bands */
+  waveTint: string;
+  /** RGBA tint for wave strokes */
+  waveStroke: string;
+  /** Chart overlay colour */
+  chartOverlay: string;
+  /** Route line colour (unlocked) */
+  routeColor: string;
+  /** Extra render pass drawn after the chart overlay */
+  renderExtra?: (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => void;
+}
+
+const THEME_BASE: MapTheme = {
+  skyTop: '#050d1a',
+  skyBottom: '#11213c',
+  ocean: ['#1a5f8a', '#1a4a6e', '#0d3b66', '#041528'],
+  waveTint: 'rgba(60,160,210,',
+  waveStroke: 'rgba(100,190,230,0.14)',
+  chartOverlay: '#0a1e38',
+  routeColor: '#7dd3fc',
+};
+
+const THEME_ROCKET: MapTheme = {
+  skyTop: '#0a0020',
+  skyBottom: '#1a0a3a',
+  ocean: ['#2a1a5e', '#1e1248', '#140e3a', '#08041c'],
+  waveTint: 'rgba(130,80,220,',
+  waveStroke: 'rgba(160,100,240,0.12)',
+  chartOverlay: '#120a2e',
+  routeColor: '#c084fc',
+  renderExtra(ctx, w, _h, t) {
+    // Distant nebula blobs
+    for (let i = 0; i < 5; i++) {
+      const nx = (30 + i * 50 + Math.sin(t * 0.15 + i * 2) * 12) % (w + 20) - 10;
+      const ny = 20 + i * 12 + Math.sin(t * 0.3 + i) * 6;
+      const r = 10 + (i % 3) * 5;
+      const grad = ctx.createRadialGradient(nx, ny, 0, nx, ny, r);
+      grad.addColorStop(0, 'rgba(168,85,247,0.12)');
+      grad.addColorStop(1, 'rgba(168,85,247,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(nx, ny, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+};
+
+const THEME_CIPHER: MapTheme = {
+  skyTop: '#000c0c',
+  skyBottom: '#0a1e1a',
+  ocean: ['#0a3a2e', '#082e24', '#06221a', '#020e0a'],
+  waveTint: 'rgba(40,200,160,',
+  waveStroke: 'rgba(52,211,153,0.12)',
+  chartOverlay: '#061a16',
+  routeColor: '#34d399',
+  renderExtra(ctx, w, h, t) {
+    // Vertical scan-lines (digital feel)
+    ctx.strokeStyle = 'rgba(52,211,153,0.04)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 6) {
+      ctx.beginPath();
+      ctx.moveTo(x, 84);
+      ctx.lineTo(x, 84 + h);
+      ctx.stroke();
+    }
+    // Horizontal scan sweep
+    const sweepY = 84 + ((t * 18) % (h + 40)) - 20;
+    ctx.fillStyle = 'rgba(52,211,153,0.05)';
+    ctx.fillRect(0, sweepY, w, 2);
+    // Floating hex characters
+    ctx.font = '7px monospace';
+    ctx.fillStyle = 'rgba(16,185,129,0.10)';
+    for (let i = 0; i < 10; i++) {
+      const hx = (i * 26 + Math.floor(t * 4 + i * 7) * 3) % w;
+      const hy = 90 + ((i * 37 + t * 14) % (h - 10));
+      const hex = ((i * 0xAB + Math.floor(t * 2)) & 0xFF).toString(16).padStart(2, '0');
+      ctx.fillText(hex, hx, hy);
+    }
+    ctx.lineWidth = 1;
+  },
+};
+
+/** Lookup theme by campaign ID */
+export const MAP_THEMES: Record<string, MapTheme> = {
+  base: THEME_BASE,
+  'rocket-science': THEME_ROCKET,
+  'cybersecurity': THEME_CIPHER,
+};
+
 interface OverworldSceneDeps {
   progress: OverworldProgress;
   fromIslandId?: string;
   /** Optional override for which nodes to show (DLC vs base). Defaults to base OVERWORLD_NODES. */
   nodes?: OverworldNodeConfig[];
+  /** Visual theme for the map. Defaults to base ocean theme. */
+  theme?: MapTheme;
   telemetry: TelemetryClient;
   audio: AudioManager;
   onIslandArrive: (islandId: string) => void;
@@ -38,6 +136,11 @@ export class OverworldScene implements Scene {
   /** Nodes to display — DLC override or base OVERWORLD_NODES */
   private get nodes(): OverworldNodeConfig[] {
     return this.deps.nodes ?? OVERWORLD_NODES;
+  }
+
+  /** Active visual theme */
+  private get theme(): MapTheme {
+    return this.deps.theme ?? THEME_BASE;
   }
   private sailProgress = 0;
   private sailDurationMs = 12_000;
@@ -146,9 +249,10 @@ export class OverworldScene implements Scene {
 
   render(ctx: CanvasRenderingContext2D): void {
     const t = this.elapsed;
+    const th = this.theme;
 
     // Sky + stars
-    drawSkyGradient(ctx, GAME_WIDTH, '#050d1a', '#11213c', HORIZON_Y);
+    drawSkyGradient(ctx, GAME_WIDTH, th.skyTop, th.skyBottom, HORIZON_Y);
     drawStars(ctx, GAME_WIDTH, HORIZON_Y, t, 30);
 
     // Storm clouds & lightning while sailing
@@ -156,8 +260,13 @@ export class OverworldScene implements Scene {
       this.renderStormSky(ctx, t);
     }
 
-    // Ocean fills the rest
-    drawOceanGradient(ctx, GAME_WIDTH, HORIZON_Y, GAME_HEIGHT - HORIZON_Y, t);
+    // Ocean fills the rest (themed)
+    this.renderThemedOcean(ctx, t);
+
+    // Theme-specific extra layer (nebula blobs, scan-lines, etc.)
+    if (th.renderExtra) {
+      th.renderExtra(ctx, GAME_WIDTH, GAME_HEIGHT - HORIZON_Y, t);
+    }
 
     // Horizon sighting during sailing
     this.renderHorizon(ctx, t);
@@ -260,6 +369,68 @@ export class OverworldScene implements Scene {
       cy = ny;
     }
     return segs;
+  }
+
+  /** Draw the ocean using the active theme palette */
+  private renderThemedOcean(ctx: CanvasRenderingContext2D, t: number): void {
+    const th = this.theme;
+    const y = HORIZON_Y;
+    const h = GAME_HEIGHT - HORIZON_Y;
+    const w = GAME_WIDTH;
+
+    // Deep-to-surface gradient (4 stops from theme)
+    const grad = ctx.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0, th.ocean[0]);
+    grad.addColorStop(0.15, th.ocean[1]);
+    grad.addColorStop(0.4, th.ocean[2]);
+    grad.addColorStop(1, th.ocean[3]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, y, w, h);
+
+    // Undulating swell bands
+    for (let band = 0; band < 4; band++) {
+      const bandY = y + 6 + band * (h / 4);
+      const alpha = 0.04 + band * 0.025;
+      ctx.fillStyle = th.waveTint + alpha.toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.moveTo(0, bandY + 8);
+      for (let px = 0; px <= w; px += 3) {
+        const offset = Math.sin((px * 0.025) + t * 0.6 + band * 1.8) * 5
+                     + Math.sin((px * 0.015) + t * 0.35 + band * 0.9) * 3;
+        ctx.lineTo(px, bandY + offset);
+      }
+      ctx.lineTo(w, bandY + 20);
+      ctx.lineTo(0, bandY + 20);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Wave strokes
+    ctx.strokeStyle = th.waveStroke;
+    ctx.lineWidth = 1;
+    for (let row = 0; row < 8; row++) {
+      const wy = y + 10 + row * (h / 8);
+      ctx.beginPath();
+      for (let px = 0; px < w; px += 2) {
+        const offset = Math.sin((px + t * 38 + row * 32) * 0.055) * 3.5
+                     + Math.sin((px * 0.12) + t * 1.2 + row * 0.7) * 1.5;
+        if (px === 0) ctx.moveTo(px, wy + offset);
+        else ctx.lineTo(px, wy + offset);
+      }
+      ctx.stroke();
+    }
+
+    // Foam caps
+    ctx.fillStyle = 'rgba(220,240,255,0.18)';
+    for (let fi = 0; fi < 12; fi++) {
+      const fx = ((fi * 23 + t * 12) % (w + 20)) - 10;
+      const fBand = fi % 5;
+      const fy = y + 6 + fBand * (h / 5) + Math.sin(fx * 0.04 + t * 0.8 + fi) * 4;
+      const foamSize = 1.2 + Math.sin(t * 2.5 + fi * 3) * 0.6;
+      ctx.beginPath();
+      ctx.arc(fx, fy, foamSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   private renderHorizon(ctx: CanvasRenderingContext2D, t: number): void {
@@ -415,7 +586,7 @@ export class OverworldScene implements Scene {
 
   private renderSeaChart(ctx: CanvasRenderingContext2D, t: number): void {
     // Semi-transparent chart overlay
-    ctx.fillStyle = rgba('#0a1e38', 0.35);
+    ctx.fillStyle = rgba(this.theme.chartOverlay, 0.35);
     ctx.fillRect(0, HORIZON_Y, GAME_WIDTH, 236);
 
     const visibleNodes = this.nodes.filter((node) =>
@@ -434,7 +605,7 @@ export class OverworldScene implements Scene {
       const isActive = (from.islandId === this.sailFromNodeId && to.islandId === this.selectedNodeId) ||
                        (to.islandId === this.sailFromNodeId && from.islandId === this.selectedNodeId);
 
-      ctx.strokeStyle = isActive ? rgba('#facc15', 0.7) : rgba('#7dd3fc', 0.4);
+      ctx.strokeStyle = isActive ? rgba('#facc15', 0.7) : rgba(this.theme.routeColor, 0.4);
       ctx.lineWidth = isActive ? 1.5 : 1;
       ctx.setLineDash([4, 4]);
       ctx.lineDashOffset = -t * 10;

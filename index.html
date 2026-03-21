@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Dead Reckoning: Memory Sea</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0a0a0a;
+        display: grid;
+        place-items: center;
+      }
+
+      canvas {
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        touch-action: none;
+        display: block;
+      }
+
+      .about-link {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+        z-index: 1000;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 10px;
+        color: #22d3ee;
+        background: rgba(8, 8, 16, 0.85);
+        border: 1px solid #22d3ee;
+        padding: 6px 10px;
+        text-decoration: none;
+        letter-spacing: 0.5px;
+      }
+      .about-link:hover {
+        background: #22d3ee;
+        color: #080810;
+      }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+    <script type="module" crossorigin src="/assets/index-CjXWWbfq.js"></script>
+  </head>
+  <body>
+    <a href="/aboutthegame/" class="about-link">⚓ About</a>
+    <canvas id="game-canvas" aria-label="Dead Reckoning game canvas"></canvas>
+  </body>
+</html>

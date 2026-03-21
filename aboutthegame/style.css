@@ -855,3 +855,19 @@ a:hover { text-decoration: underline; }
 .rarity-rare      { color: var(--blue); }
 .rarity-epic      { color: var(--violet); }
 .rarity-legendary { color: var(--yellow); }
+
+
+/* Section artwork */
+.section-art {
+  margin: var(--space-lg) auto var(--space-xl);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+}
+
+.section-art img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
